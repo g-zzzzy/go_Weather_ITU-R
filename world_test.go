@@ -33,18 +33,18 @@ func TestWorldUpdate(t *testing.T) {
 
 	satellite1 := &SatelliteEntity{
 		BasicEntity: NewBasic(),
-		position: SatellitePositionComponent{
-			lat: 15.0,
-			lon: 25.0,
-			h:   35.0,
+		TLE: TLEComponent{
+			line1:     "1 23599U 95029B   06171.76535463  .00085586  12891-6  12956-2 0  2905",
+			line2:     "2 23599   6.9327   0.2849 5782022 274.4436  25.2425  4.47796565123555",
+			gravConst: "wgs72",
 		},
 	}
 	satellite2 := &SatelliteEntity{
 		BasicEntity: NewBasic(),
-		position: SatellitePositionComponent{
-			lat: 10.0,
-			lon: 20.0,
-			h:   30.0,
+		TLE: TLEComponent{
+			line1:     "1 06251U 62025E   06176.82412014  .00008885  00000-0  12808-3 0  3985",
+			line2:     "2 06251  58.0579  54.0425 0030035 139.1568 221.1854 15.56387291  6774",
+			gravConst: "wgs72",
 		},
 	}
 	satelliteSystem.Add(satellite1)
@@ -75,7 +75,7 @@ func TestWorldUpdate(t *testing.T) {
 	for _, system := range world.GetSystem() {
 		for _, entity := range system.GetEntity() {
 			if satellite, ok := entity.(*SatelliteEntity); ok {
-				fmt.Printf("卫星实体ID: %d，位置信息：纬度 %.2f，经度 %.2f，高度 %.2f\n", satellite.GetBasicEntity().id, satellite.position.lat, satellite.position.lon, satellite.position.h)
+				fmt.Printf("卫星实体ID: %d，位置信息：纬度 %.2f，经度 %.2f，高度 %.2f\n", satellite.GetBasicEntity().id, satellite.position.position.X, satellite.position.position.Y, satellite.position.position.Z)
 			} else if station, ok := entity.(*StationEntity); ok {
 				fmt.Printf("地面站ID：%d, 位置信息：纬度 %.2f，经度 %.2f\n", station.GetBasicEntity().id, station.position.lat, station.position.lon)
 			} else if weather, ok := entity.(*WeatherIndexEntity); ok {

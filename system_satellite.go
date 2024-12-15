@@ -1,8 +1,12 @@
 package go_Weather_ITUR
 
-import "log"
+// import "log"
 
-//import "github.com/joshuaferrara/go-satellite"
+import (
+	"log"
+
+	"github.com/joshuaferrara/go-satellite"
+)
 
 type SatelliteSystem struct {
 	BasicSystem
@@ -17,11 +21,17 @@ func (s *SatelliteSystem) GetEntity() []Identifier {
 	return entities
 }
 
-func (s *SatelliteSystem) Add(satellite *SatelliteEntity) {
+func (s *SatelliteSystem) Add(sat *SatelliteEntity) {
 	if s.satellites == nil {
 		s.satellites = make(map[uint64]*SatelliteEntity)
 	}
-	s.satellites[satellite.GetBasicEntity().id] = satellite
+	line1 := sat.TLE.line1
+	line2 := sat.TLE.line2
+	grav := sat.TLE.gravConst
+	satrec := satellite.TLEToSat(line1, line2, grav)
+	sat.satellite = satrec
+	s.satellites[sat.GetBasicEntity().id] = sat
+	log.Printf("卫星：%d,初始时的位置是 %f, %f, %f", sat.GetBasicEntity().id, sat.position.position.X, sat.position.position.Y, sat.position.position.Z)
 }
 
 func (s *SatelliteSystem) Remove(satellite *SatelliteEntity) {
@@ -35,11 +45,12 @@ func (s *SatelliteSystem) Update(dt int64) {
 	if s.ShouldUpdate(s.elapsed) {
 		println("satellite position update")
 		// 具体的update
-		for _, satellite := range s.satellites {
-			satellite.position.lat += 10
-			satellite.position.lon += 10
-			satellite.position.h += 1
-			log.Printf("卫星 %d 的位置更新为：纬度 %.2f，经度 %.2f，高度 %.2f\n", satellite.GetBasicEntity().id, satellite.position.lat, satellite.position.lon, satellite.position.h)
+		for _, sat := range s.satellites {
+			p, v := satellite.Propagate(sat.satellite, 2023, 12, 30, 1+int(s.elapsed), 14, int(dt))
+			log.Printf("time: %d", 13+s.elapsed)
+			log.Printf("P: X = %.2f, Y = %.2f, Z = %.2f\n", p.X, p.Y, p.Z)
+			log.Printf("V: X = %.2f, Y = %.2f, Z = %.2f\n", v.X, v.Y, v.Z)
+			// log.Printf("卫星：%d,在2023年12月30日%d时14分的位置是 %f, %f, %f", sat.GetBasicEntity().id, s.elapsed+13, sat.position.position.X, sat.position.position.Y, sat.position.position.Z)
 		}
 	}
 }
