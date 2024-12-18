@@ -4,8 +4,9 @@ import "github.com/joshuaferrara/go-satellite"
 
 type SatelliteEntity struct {
 	BasicEntity
-	position  *SatellitePositionComponent
-	velocity  *SatelliteVelocityComponent
+	// position  *SatellitePositionComponent
+	// velocity  *SatelliteVelocityComponent
+	movement  *SatelliteMovementComponent
 	satellite satellite.Satellite
 	TLE       TLEComponent
 }
