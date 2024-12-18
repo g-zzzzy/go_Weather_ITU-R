@@ -1,8 +1,15 @@
 package go_Weather_ITUR
 
-
 type World struct {
-	systems      []System
+	systems          []System
+	componentManager *ComponentManager
+}
+
+func NewWorld() *World {
+	return &World{
+		componentManager: NewComponentManager(),
+		systems:          make([]System, 0),
+	}
 }
 
 func (w *World) AddSystem(system System) {
@@ -15,6 +22,6 @@ func (w *World) GetSystem() []System {
 
 func (w *World) Update(dt int64) {
 	for _, system := range w.GetSystem() {
-		system.Update(dt)
+		system.Update(dt, w.componentManager)
 	}
 }

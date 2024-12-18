@@ -13,15 +13,7 @@ type SatelliteSystem struct {
 	satellites map[uint64]*SatelliteEntity
 }
 
-func (s *SatelliteSystem) GetEntity() []Identifier {
-	var entities []Identifier
-	for _, satellite := range s.satellites {
-		entities = append(entities, satellite)
-	}
-	return entities
-}
-
-func (s *SatelliteSystem) Add(sat *SatelliteEntity) {
+func (s *SatelliteSystem) Add(sat *SatelliteEntity, w *World) {
 	if s.satellites == nil {
 		s.satellites = make(map[uint64]*SatelliteEntity)
 	}
@@ -31,26 +23,28 @@ func (s *SatelliteSystem) Add(sat *SatelliteEntity) {
 	satrec := satellite.TLEToSat(line1, line2, grav)
 	sat.satellite = satrec
 	s.satellites[sat.GetBasicEntity().id] = sat
-	log.Printf("卫星：%d,初始时的位置是 %f, %f, %f", sat.GetBasicEntity().id, sat.position.position.X, sat.position.position.Y, sat.position.position.Z)
+	log.Printf("Adding component for satellite with ID %d\n", sat.id)
+	w.componentManager.AddComponent(EntityID(sat.id), SatellitePositionComponent{satellite.Vector3{}})
+	w.componentManager.AddComponent(EntityID(sat.id), SatelliteVelocityComponent{satellite.Vector3{}})
 }
 
-func (s *SatelliteSystem) Remove(satellite *SatelliteEntity) {
-	if s.satellites != nil {
-		delete(s.satellites, satellite.GetBasicEntity().id)
-	}
-}
-
-func (s *SatelliteSystem) Update(dt int64) {
+func (s *SatelliteSystem) Update(dt int64, cm *ComponentManager) {
 	s.AddElapsed(dt)
 	if s.ShouldUpdate(s.elapsed) {
-		println("satellite position update")
-		// 具体的update
-		for _, sat := range s.satellites {
-			p, v := satellite.Propagate(sat.satellite, 2023, 12, 30, 1+int(s.elapsed), 14, int(dt))
-			log.Printf("time: %d", 13+s.elapsed)
-			log.Printf("P: X = %.2f, Y = %.2f, Z = %.2f\n", p.X, p.Y, p.Z)
-			log.Printf("V: X = %.2f, Y = %.2f, Z = %.2f\n", v.X, v.Y, v.Z)
-			// log.Printf("卫星：%d,在2023年12月30日%d时14分的位置是 %f, %f, %f", sat.GetBasicEntity().id, s.elapsed+13, sat.position.position.X, sat.position.position.Y, sat.position.position.Z)
+		for i := 0; i < len(cm.satellitePositionComponents); i++ {
+			positionComponent := &cm.satellitePositionComponents[i]
+			velocityComponent := &cm.satelliteVelocityComponents[i]
+
+			if sat, exists := s.satellites[uint64(i)]; exists {
+				p, v := satellite.Propagate(sat.satellite, 2023, 12, 30, 1+int(s.elapsed), 14, int(dt))
+				positionComponent.position.X = p.X
+				positionComponent.position.Y = p.Y
+				positionComponent.position.Z = p.Z
+				velocityComponent.velocity.X = v.X
+				velocityComponent.velocity.Y = v.Y
+				velocityComponent.velocity.Z = v.Z
+				log.Printf("卫星 %d, X: %.2f, Y: %.2f, Z: %.2f", i, cm.satellitePositionComponents[i].position.X, cm.satellitePositionComponents[i].position.Y, cm.satellitePositionComponents[i].position.Z)
+			}
 		}
 	}
 }

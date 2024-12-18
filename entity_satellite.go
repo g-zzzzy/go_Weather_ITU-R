@@ -4,10 +4,10 @@ import "github.com/joshuaferrara/go-satellite"
 
 type SatelliteEntity struct {
 	BasicEntity
-	position 	SatellitePositionComponent
-	velocity 	SatelliteVelocityComponent
-	satellite 	satellite.Satellite
-	TLE			TLEComponent
+	position  *SatellitePositionComponent
+	velocity  *SatelliteVelocityComponent
+	satellite satellite.Satellite
+	TLE       TLEComponent
 }
 
 func (e *SatelliteEntity) ID() uint64 {

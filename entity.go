@@ -4,13 +4,15 @@ import (
 	"sync/atomic"
 )
 
+type EntityID uint64
+
 var (
 	idInc uint64
 )
 
 type BasicEntity struct {
 	// Entity ID.
-	id       uint64
+	id uint64
 }
 
 type Identifier interface {

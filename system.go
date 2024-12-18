@@ -1,12 +1,11 @@
 package go_Weather_ITUR
 
 type System interface {
-	Update(dt int64)
+	Update(dt int64, cm *ComponentManager)
 	// Remove(e BasicEntity)
 	GetInterval() int64
 	ShouldUpdate(elapsed int64) bool
 	AddElapsed(dt int64)
-	GetEntity() []Identifier
 }
 
 type BasicSystem struct {
