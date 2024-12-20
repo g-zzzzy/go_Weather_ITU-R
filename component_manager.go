@@ -4,8 +4,8 @@ type ComponentManager struct {
 	// satellitePositionComponents []SatellitePositionComponent
 	// satelliteVelocityComponents []SatelliteVelocityComponent
 	satelliteMovementComponents []SatelliteMovementComponent
-	stationPositionComponents   []StationPositionComponent
-	weatherIndexComponents      []WeatherIndexComponent
+	// stationPositionComponents   []StationPositionComponent
+	weatherIndexComponents []WeatherIndexComponent
 }
 
 func NewComponentManager() *ComponentManager {
@@ -13,8 +13,8 @@ func NewComponentManager() *ComponentManager {
 		// satellitePositionComponents: make([]SatellitePositionComponent, 0),
 		// satelliteVelocityComponents: make([]SatelliteVelocityComponent, 0),
 		satelliteMovementComponents: make([]SatelliteMovementComponent, 0),
-		stationPositionComponents:   make([]StationPositionComponent, 0),
-		weatherIndexComponents:      make([]WeatherIndexComponent, 0),
+		// stationPositionComponents:   make([]StationPositionComponent, 0),
+		weatherIndexComponents: make([]WeatherIndexComponent, 0),
 	}
 }
 
@@ -35,11 +35,11 @@ func (cm *ComponentManager) AddComponent(entityID EntityID, component interface{
 			cm.satelliteMovementComponents = append(cm.satelliteMovementComponents, SatelliteMovementComponent{})
 		}
 		cm.satelliteMovementComponents[entityID] = comp
-	case StationPositionComponent:
-		for len(cm.stationPositionComponents) <= int(entityID) {
-			cm.stationPositionComponents = append(cm.stationPositionComponents, StationPositionComponent{})
-		}
-		cm.stationPositionComponents[entityID] = comp
+	// case StationPositionComponent:
+	// 	for len(cm.stationPositionComponents) <= int(entityID) {
+	// 		cm.stationPositionComponents = append(cm.stationPositionComponents, StationPositionComponent{})
+	// 	}
+	// 	cm.stationPositionComponents[entityID] = comp
 	case WeatherIndexComponent:
 		for len(cm.weatherIndexComponents) <= int(entityID) {
 			cm.weatherIndexComponents = append(cm.weatherIndexComponents, WeatherIndexComponent{})

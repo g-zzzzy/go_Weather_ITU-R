@@ -20,15 +20,9 @@ func TestWorldUpdate(t *testing.T) {
 			elapsed:  0,
 		},
 	}
-	// weatherSystem := &WeatherSystem{
-	// 	BasicSystem: BasicSystem{
-	// 		interval: 10,
-	// 		elapsed:  0,
-	// 	},
-	// }
 	world.AddSystem(satelliteSystem)
 	world.AddSystem(stationSystem)
-	// world.AddSystem(weatherSystem)
+
 
 	satellite1 := &SatelliteEntity{
 		BasicEntity: NewBasic(),
