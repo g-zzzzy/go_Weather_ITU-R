@@ -21,9 +21,7 @@ func (s *StationSystem) Add(station *StationEntity, w *World) {
 	w.componentManager.AddComponent(EntityID(station.id), WeatherIndexComponent{})
 }
 
-func (s *StationSystem) Update(dt int64, cm *ComponentManager) {
-	// log.Printf("station of position is fixed")
-	log.Printf("weather of the place where station is at")
+func (s *StationSystem) Update(dt int64, cm *ComponentManager, w *World) {
 	s.AddElapsed(dt)
 	if s.ShouldUpdate(s.elapsed) {
 		println("weather index update")

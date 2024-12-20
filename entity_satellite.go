@@ -6,7 +6,7 @@ type SatelliteEntity struct {
 	BasicEntity
 	// position  *SatellitePositionComponent
 	// velocity  *SatelliteVelocityComponent
-	movement  *SatelliteMovementComponent
+	// movement  *SatelliteMovementComponent
 	satellite satellite.Satellite
 	TLE       TLEComponent
 }

@@ -20,9 +20,15 @@ func TestWorldUpdate(t *testing.T) {
 			elapsed:  0,
 		},
 	}
+	attenuationSystem := &AttenuationSystem{
+		BasicSystem: BasicSystem{
+			interval: 10,
+			elapsed:  0,
+		},
+	}
 	world.AddSystem(satelliteSystem)
 	world.AddSystem(stationSystem)
-
+	world.AddSystem(attenuationSystem)
 
 	satellite1 := &SatelliteEntity{
 		BasicEntity: NewBasic(),
@@ -42,6 +48,7 @@ func TestWorldUpdate(t *testing.T) {
 	}
 	satelliteSystem.Add(satellite1, world)
 	satelliteSystem.Add(satellite2, world)
+
 	station1 := &StationEntity{
 		BasicEntity: NewBasic(),
 		position: StationPositionComponent{

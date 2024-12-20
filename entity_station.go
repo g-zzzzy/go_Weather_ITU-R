@@ -2,8 +2,8 @@ package go_Weather_ITUR
 
 type StationEntity struct {
 	BasicEntity
-	position      StationPositionComponent
-	weatherIndexs *WeatherIndexComponent
+	position StationPositionComponent
+	// weatherIndexs *WeatherIndexComponent
 }
 
 func (e *StationEntity) ID() uint64 {
