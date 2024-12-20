@@ -14,12 +14,12 @@ func TestWorldUpdate(t *testing.T) {
 			elapsed:  0,
 		},
 	}
-	// stationSystem := &StationSystem{
-	// 	BasicSystem: BasicSystem{
-	// 		interval: 0,
-	// 		elapsed:  0,
-	// 	},
-	// }
+	stationSystem := &StationSystem{
+		BasicSystem: BasicSystem{
+			interval: 10,
+			elapsed:  0,
+		},
+	}
 	// weatherSystem := &WeatherSystem{
 	// 	BasicSystem: BasicSystem{
 	// 		interval: 10,
@@ -27,7 +27,7 @@ func TestWorldUpdate(t *testing.T) {
 	// 	},
 	// }
 	world.AddSystem(satelliteSystem)
-	// world.AddSystem(stationSystem)
+	world.AddSystem(stationSystem)
 	// world.AddSystem(weatherSystem)
 
 	satellite1 := &SatelliteEntity{
@@ -48,6 +48,14 @@ func TestWorldUpdate(t *testing.T) {
 	}
 	satelliteSystem.Add(satellite1, world)
 	satelliteSystem.Add(satellite2, world)
+	station1 := &StationEntity{
+		BasicEntity: NewBasic(),
+		position: StationPositionComponent{
+			lat: 31,
+			lon: 121.5,
+		},
+	}
+	stationSystem.Add(station1, world)
 
 	for i := 1; i <= 20; i++ {
 		println("Tick:", i)

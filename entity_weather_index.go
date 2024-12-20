@@ -2,7 +2,7 @@ package go_Weather_ITUR
 
 type WeatherIndexEntity struct{
 	BasicEntity
-	indexs WeatherIndexComponent
+	indexs *WeatherIndexComponent
 }
 
 func (e *WeatherIndexEntity) ID() uint64 {

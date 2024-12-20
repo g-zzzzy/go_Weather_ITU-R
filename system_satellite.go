@@ -38,7 +38,7 @@ func (s *SatelliteSystem) Update(dt int64, cm *ComponentManager) {
 			movementComponent := &cm.satelliteMovementComponents[i]
 
 			if sat, exists := s.satellites[uint64(i)]; exists {
-				p, v := satellite.Propagate(sat.satellite, 2023, 12, 30, 1+int(s.elapsed), 14, int(dt))
+				p, v := satellite.Propagate(sat.satellite, 2023, 8, 7, 1+int(s.elapsed), 14, int(dt))
 				// positionComponent.position.X = p.X
 				// positionComponent.position.Y = p.Y
 				// positionComponent.position.Z = p.Z
