@@ -1,6 +1,9 @@
 package go_Weather_ITUR
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 type AttenuationSystem struct {
 	BasicSystem
@@ -27,12 +30,21 @@ func (s *AttenuationSystem) Update(dt int64, cm *ComponentManager, w *World) {
 			cm.attenuationComponents[i] = make([]AttenuationComponent, stationCount)
 		}
 
-		for satelliteID := 0; satelliteID < satelliteCount; satelliteID++ {
-			for stationID := 0; stationID < stationCount; stationID++ {
-				
+		satelliteIDs, err1 := w.GetSystemEntityIDs("SatelliteSystem")
+		if err1 != nil {
+			fmt.Println("Error:", err1)
+		}
+		stationIDs, err2 := w.GetSystemEntityIDs("StationSystem")
+		if err2 != nil {
+			fmt.Println("Error:", err2)
+		} else {
+			fmt.Println("stationID:", stationIDs)
+		}
+
+		for _, satelliteID := range satelliteIDs {
+			for _, stationID := range stationIDs {
 				satelliteMovement := cm.satelliteMovementComponents[satelliteID]
 				weatherIndex := cm.weatherIndexComponents[stationID]
-
 				attenuation := satelliteMovement.position.X + satelliteMovement.position.Y + satelliteMovement.position.Z + weatherIndex.precipitation + weatherIndex.T
 				cm.attenuationComponents[satelliteID][stationID] = AttenuationComponent{
 					attenuation: attenuation,
@@ -40,11 +52,18 @@ func (s *AttenuationSystem) Update(dt int64, cm *ComponentManager, w *World) {
 			}
 		}
 
-		for satelliteID := 0; satelliteID < satelliteCount; satelliteID++ {
-			for stationID := 0; stationID < stationCount; stationID++ {
+		for _, satelliteID := range satelliteIDs {
+			for _, stationID := range stationIDs {
 				log.Printf("卫星%d 与 地面站%d 通信的损失为%.2f", satelliteID, stationID, cm.attenuationComponents[satelliteID][stationID])
 			}
 		}
-
 	}
+}
+
+func (s *AttenuationSystem) GetEntityIDs() []uint64 {
+	var ids []uint64
+	for id := range s.attenuations {
+		ids = append(ids, id)
+	}
+	return ids
 }

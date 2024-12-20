@@ -29,7 +29,7 @@ func (s *SatelliteSystem) Add(sat *SatelliteEntity, w *World) {
 	w.componentManager.AddComponent(EntityID(sat.id), SatelliteMovementComponent{})
 }
 
-func (s *SatelliteSystem) Update(dt int64, cm *ComponentManager) {
+func (s *SatelliteSystem) Update(dt int64, cm *ComponentManager, w *World) {
 	s.AddElapsed(dt)
 	if s.ShouldUpdate(s.elapsed) {
 		for i := 0; i < len(cm.satelliteMovementComponents); i++ {
@@ -55,4 +55,12 @@ func (s *SatelliteSystem) Update(dt int64, cm *ComponentManager) {
 			}
 		}
 	}
+}
+
+func (s *SatelliteSystem) GetEntityIDs() []uint64 {
+	var ids []uint64
+	for id := range s.satellites {
+		ids = append(ids, id)
+	}
+	return ids
 }

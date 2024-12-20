@@ -17,6 +17,7 @@ func (s *StationSystem) Add(station *StationEntity, w *World) {
 	if s.stations == nil {
 		s.stations = make(map[uint64]*StationEntity)
 	}
+	log.Printf("station %d added", station.GetBasicEntity().id)
 	s.stations[station.GetBasicEntity().id] = station
 	w.componentManager.AddComponent(EntityID(station.id), WeatherIndexComponent{})
 }
@@ -59,4 +60,12 @@ func (s *StationSystem) Update(dt int64, cm *ComponentManager, w *World) {
 			}
 		}
 	}
+}
+
+func (s *StationSystem) GetEntityIDs() []uint64 {
+	var ids []uint64
+	for id := range s.stations {
+		ids = append(ids, id)
+	}
+	return ids
 }
