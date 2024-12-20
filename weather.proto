@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package weather;
+
+option go_package = "./weather";
+
+// 定义服务接口
+service WeatherService {
+  // 定义获取天气的 RPC 方法
+  rpc GetWeather (WeatherRequest) returns (WeatherResponse);
+}
+
+// 请求消息
+message WeatherRequest {
+  string start_date = 1;
+  string end_date = 2;
+  string specific_date = 3;
+  string time = 4;
+  float lat = 5;
+  float lon = 6;
+}
+
+// 响应消息
+message WeatherResponse {
+  float temp = 1;      // 天气数据
+  float precipitation = 2;
+}
