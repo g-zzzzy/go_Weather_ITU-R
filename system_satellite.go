@@ -40,7 +40,7 @@ func (s *SatelliteSystem) Update(dt int64, cm *ComponentManager, w *World) {
 
 			if sat, exists := s.satellites[uint64(i)]; exists {
 				// get current time
-				currentTime := time.Now().In(time.FixedZone("CST", 8*60*60))
+				currentTime := time.Now().UTC()
 				year, month, day := currentTime.Date()
 				hours, minutes, seconds := currentTime.Clock()
 				p, v := satellite.Propagate(sat.satellite, year, int(month), day, hours, minutes, seconds)

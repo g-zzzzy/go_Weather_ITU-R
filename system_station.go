@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 )
 
 type StationSystem struct {
@@ -62,11 +63,14 @@ func (s *StationSystem) Update(dt int64, cm *ComponentManager, w *World) {
 				if err != nil {
 					log.Fatalf("Error unmarshalling JSON: %v", err)
 				}
+				currentTime := time.Now()
+				hours, _, _ := currentTime.Clock()
+				log.Printf("hours: %d", hours)
 
-				weatherIndexComponent.T = float64(forecast.Hourly.Temperature2m[0])
-				weatherIndexComponent.precipitation = float64(forecast.Hourly.Precipitation[0])
-				weatherIndexComponent.P = float64(forecast.Hourly.SurfacePressure[0])
-				log.Printf("降水：%.2f mm/h, 温度：%.2f C, 气压：%.2f hPa", cm.weatherIndexComponents[i].precipitation, cm.weatherIndexComponents[i].T, cm.weatherIndexComponents[i].P)
+				weatherIndexComponent.T = float64(forecast.Hourly.Temperature2m[hours])
+				weatherIndexComponent.precipitation = float64(forecast.Hourly.Precipitation[hours])
+				weatherIndexComponent.P = float64(forecast.Hourly.SurfacePressure[hours])
+				log.Printf("GMT时刻：%d, 降水：%.2f mm/h, 温度：%.2f C, 气压：%.2f hPa", hours, cm.weatherIndexComponents[i].precipitation, cm.weatherIndexComponents[i].T, cm.weatherIndexComponents[i].P)
 			}
 
 			// conn, err := grpc.Dial("10.0.0.52:50051", grpc.WithInsecure())
