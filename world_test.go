@@ -1,6 +1,11 @@
 package go_Weather_ITUR
 
 import (
+	"bufio"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -30,33 +35,71 @@ func TestWorldUpdate(t *testing.T) {
 	world.AddSystem(stationSystem)
 	world.AddSystem(attenuationSystem)
 
-	satellite1 := &SatelliteEntity{
-		BasicEntity: NewBasic(),
-		TLE: TLEComponent{
-			line1:     "1 06251U 62025E   06176.82412014  .00008885  00000-0  12808-3 0  3985",
-			line2:     "2 06251  58.0579  54.0425 0030035 139.1568 221.1854 15.56387291  6774",
-			gravConst: "wgs72",
-		},
-	}
-	satellite2 := &SatelliteEntity{
-		BasicEntity: NewBasic(),
-		TLE: TLEComponent{
-			line1:     "1 23599U 95029B   06171.76535463  .00085586  12891-6  12956-2 0  2905",
-			line2:     "2 23599   6.9327   0.2849 5782022 274.4436  25.2425  4.47796565123555",
-			gravConst: "wgs72",
-		},
-	}
-	satelliteSystem.Add(satellite1, world)
-	satelliteSystem.Add(satellite2, world)
+	filename_tle := "data/satellite_tle_data.txt"
+	file, err := os.Open(filename_tle)
+	if err != nil {
+		fmt.Println("Error Loading TLE:", err)
+	} else {
+		defer file.Close()
 
-	station1 := &StationEntity{
-		BasicEntity: NewBasic(),
-		position: StationPositionComponent{
-			lat: 31,
-			lon: 121.5,
-		},
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			l1 := scanner.Text()
+
+			if !scanner.Scan() {
+				break
+			}
+			l2 := scanner.Text()
+			satellite := &SatelliteEntity{
+				BasicEntity: NewBasic(),
+				TLE: TLEComponent{
+					line1:     l1,
+					line2:     l2,
+					gravConst: "wgs72",
+				},
+			}
+			satelliteSystem.Add(satellite, world)
+		}
+
+		if err := scanner.Err(); err != nil {
+			fmt.Println("Scanner Error: ", err)
+		}
 	}
-	stationSystem.Add(station1, world)
+
+	filename_station := "data/station_data.txt"
+	file, err = os.Open(filename_station)
+	if err != nil {
+		fmt.Println("Error Loading Station:", err)
+	} else {
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := scanner.Text()
+			parts := strings.Fields(line)
+			if len(parts) != 2 {
+				continue
+			}
+			lat, err1 := strconv.ParseFloat(parts[0], 64)
+			lon, err2 := strconv.ParseFloat(parts[1], 64)
+			if err1 != nil || err2 != nil {
+				fmt.Println("Error Lat: ", err1)
+				fmt.Println("Error Lon: ", err2)
+			} else {
+				station := &StationEntity{
+					BasicEntity: NewBasic(),
+					position: StationPositionComponent{
+						lat: lat,
+						lon: lon,
+					},
+				}
+				stationSystem.Add(station, world)
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			fmt.Println("Scanner Error: ", err)
+		}
+	}
 
 	for i := 1; i <= 20; i++ {
 		println("Tick:", i)
