@@ -4,6 +4,7 @@ package go_Weather_ITUR
 
 import (
 	"log"
+	"time"
 
 	"github.com/joshuaferrara/go-satellite"
 )
@@ -38,13 +39,12 @@ func (s *SatelliteSystem) Update(dt int64, cm *ComponentManager, w *World) {
 			movementComponent := &cm.satelliteMovementComponents[i]
 
 			if sat, exists := s.satellites[uint64(i)]; exists {
-				p, v := satellite.Propagate(sat.satellite, 2023, 8, 7, 1+int(s.elapsed), 14, int(dt))
-				// positionComponent.position.X = p.X
-				// positionComponent.position.Y = p.Y
-				// positionComponent.position.Z = p.Z
-				// velocityComponent.velocity.X = v.X
-				// velocityComponent.velocity.Y = v.Y
-				// velocityComponent.velocity.Z = v.Z
+				// get current time
+				currentTime := time.Now().In(time.FixedZone("CST", 8*60*60))
+				year, month, day := currentTime.Date()
+				hours, minutes, seconds := currentTime.Clock()
+				p, v := satellite.Propagate(sat.satellite, year, int(month), day, hours, minutes, seconds)
+				log.Printf("year: %d, month: %d, day: %d, hours: %d, minutes: %d, seconds: %d", year, month, day, hours, minutes, seconds)
 				movementComponent.position.X = p.X
 				movementComponent.position.Y = p.Y
 				movementComponent.position.Z = p.Z

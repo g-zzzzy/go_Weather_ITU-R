@@ -42,7 +42,9 @@ func (s *StationSystem) Update(dt int64, cm *ComponentManager, w *World) {
 			if _, exists := s.stations[uint64(i)]; exists {
 				lat := float32(s.stations[uint64(i)].position.lat)
 				lon := float32(s.stations[uint64(i)].position.lon)
-
+				//temperature_2m: C
+				//precipitation: mm/h
+				//surface_pressure: hPa
 				url := fmt.Sprintf("https://api.open-meteo.com/v1/forecast?latitude=%.2f&longitude=%.2f&hourly=temperature_2m,precipitation,surface_pressure", lat, lon)
 				// 发送 GET 请求
 				resp, err := http.Get(url)
@@ -64,7 +66,7 @@ func (s *StationSystem) Update(dt int64, cm *ComponentManager, w *World) {
 				weatherIndexComponent.T = float64(forecast.Hourly.Temperature2m[0])
 				weatherIndexComponent.precipitation = float64(forecast.Hourly.Precipitation[0])
 				weatherIndexComponent.P = float64(forecast.Hourly.SurfacePressure[0])
-				log.Printf("降水：%.2f, 温度：%.2f, 气压：%.2f", cm.weatherIndexComponents[i].precipitation, cm.weatherIndexComponents[i].T, cm.weatherIndexComponents[i].P)
+				log.Printf("降水：%.2f mm/h, 温度：%.2f C, 气压：%.2f hPa", cm.weatherIndexComponents[i].precipitation, cm.weatherIndexComponents[i].T, cm.weatherIndexComponents[i].P)
 			}
 
 			// conn, err := grpc.Dial("10.0.0.52:50051", grpc.WithInsecure())
