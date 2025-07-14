@@ -4,6 +4,7 @@ import (
 	"go_Weather_ITUR/internal/itur"
 	"go_Weather_ITUR/internal/utils"
 	"log"
+	"time"
 )
 
 type AttenuationSystem struct {
@@ -21,21 +22,27 @@ func NewAttenuationSystem(interval int64) *AttenuationSystem {
 
 func (s *AttenuationSystem) Update(dt int64, cm *ComponentManager, w *World) {
 	log.Printf("AttenuationSystem update...")
+	startTime := time.Now()
 	cnt := 0
-	for LinkKey, linkComp := range cm.LinkComponents {
+	for linkKey, linkComp := range cm.LinkComponents {
 		if !linkComp.Connected {
 			continue
 		}
 		cnt++
-		sourceID := LinkKey.SourceID
-		targetID := LinkKey.TargetID
-		satMovement, satOk := cm.SatelliteMovementComponents[sourceID]
-		stationWeather, stationOk := cm.WeatherIndexComponents[targetID]
-		stationPos, posOk := cm.StationPositionComponents[targetID]
+		sourceID := linkKey.SourceID
+		targetID := linkKey.TargetID
 
-		if !satOk || !stationOk || !posOk {
+		satIdx, satOk := cm.MovementEntityToIndex[sourceID]
+		weatherIdx, weatherOk := cm.WeatherEntityToIndex[targetID]
+		stationIdx, posOk := cm.StationEntityToIndex[targetID]
+
+		if !satOk || !weatherOk || !posOk {
 			continue
 		}
+
+		satMovement := &cm.SatelliteMovementComponents[satIdx]
+		stationWeather := &cm.WeatherIndexComponents[weatherIdx]
+		stationPos := &cm.StationPositionComponents[stationIdx]
 
 		pre := stationWeather.precipitation
 		latSat, lonSat, hSat := utils.XYZToLatLonAlt(
@@ -47,21 +54,18 @@ func (s *AttenuationSystem) Update(dt int64, cm *ComponentManager, w *World) {
 		latGS, lonGS := stationPos.Lat, stationPos.Lon
 		el := utils.Elevation_angle(hSat, latSat, lonSat, latGS, lonGS)
 
-		f := 22.5 // GHz
+		f := 22.5
 		p := 0.1
-		hs := 0.1 // km
+		hs := 0.1
 		R001 := pre
 		tau := 45.0
 		var Ls float64
 		Ar := itur.RainAttenuation(latGS, lonGS, f, el, hs, p, R001, tau, Ls)
 
-		cm.AttenuationComponents[LinkKey] = AttenuationComponent{
-			Attenuation: Ar,
-		}
-
-		// log.Printf("Link Sat %d - Sta %d: Ar=%.2f", sourceID, targetID, Ar)
-
+		cm.AttenuationComponents[linkKey] = AttenuationComponent{Attenuation: Ar}
 	}
 	log.Printf("Attenuation computed count: %d", cnt)
+	endTime := time.Now()
+	log.Printf("AttenuationSystem update time: %v", endTime.Sub(startTime))
 
 }

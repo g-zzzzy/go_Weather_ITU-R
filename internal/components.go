@@ -14,17 +14,26 @@ type StationPositionComponent struct {
 }
 
 type SatelliteMovementComponent struct {
+	EntityID EntityID
 	Position satellite.Vector3
 	Velocity satellite.Vector3
 }
 
 type WeatherIndexComponent struct {
+	EntityID      EntityID
 	T             float64 // 2m temperature (K)
 	P             float64 // surface pressure	(hPa)
 	V_t           float64 // total column water vapour (kg/m2)
 	rho           float64 // surface water vapour density (g/m3)
 	precipitation float64 // rain (mm/s)
 	hr            float64 // rain height (km)
+}
+
+type AttenuationInputComponent struct {
+	EntityID                  EntityID
+	SatPosX, SatPosY, SatPosZ float64
+	StationLat, StationLon    float64
+	Precipitation             float64
 }
 
 type AttenuationComponent struct {
@@ -37,4 +46,5 @@ type SatelliteSGP4Component struct {
 
 type LinkComponent struct {
 	Connected bool
+	em        [47]byte
 }

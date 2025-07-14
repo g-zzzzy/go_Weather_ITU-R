@@ -10,14 +10,20 @@ import (
 	"strings"
 	"time"
 
-	_ "net/http/pprof"
-
 	"github.com/joshuaferrara/go-satellite"
 )
 
 func main() {
-	// go func() {
-	// for i := 0; i < 20; i++ {
+	if len(os.Args) != 3 {
+		log.Fatalf("Usage: %s <station_num> <satellite_nums>", os.Args[0])
+	}
+	// 解析参数
+	stationCount, err1 := strconv.Atoi(os.Args[1])
+	satelliteCount, err2 := strconv.Atoi(os.Args[2])
+	if err1 != nil || err2 != nil {
+		log.Fatalf("Invalid arguments: %v, %v", err1, err2)
+	}
+	fmt.Printf("ECS running with %d stations and %d satellites\n", stationCount, satelliteCount)
 
 	startTime := time.Now()
 
@@ -25,15 +31,15 @@ func main() {
 
 	satelliteSystem := internal.NewSatelliteSystem(5)
 	stationSystem := internal.NewStationSystem(10)
-	topoSystem := internal.NewTopoSystem(10)
+	// topoSystem := internal.NewTopoSystem(10)
 	// attenuationSystem := internal.NewAttenuationSystem(10)
 
 	world.AddSystem(satelliteSystem)
 	world.AddSystem(stationSystem)
-	world.AddSystem(topoSystem)
+	// world.AddSystem(topoSystem)
 	// world.AddSystem(attenuationSystem)
 
-	filename_tle := "data/satellite_tle_data2000.txt"
+	filename_tle := "data/satellite_4000.txt"
 	file, err := os.Open(filename_tle)
 	if err != nil {
 		fmt.Println("Error Loading TLE:", err)
@@ -41,7 +47,8 @@ func main() {
 		defer file.Close()
 
 		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
+		readSat := 0
+		for scanner.Scan() && readSat < satelliteCount {
 			l1 := scanner.Text()
 
 			if !scanner.Scan() {
@@ -69,6 +76,7 @@ func main() {
 			world.Components.MovementEntityToIndex[entityID] = len(world.Components.SatelliteMovementComponents) - 1
 
 			satelliteSystem.AddEntityID(entityID)
+			readSat++
 
 		}
 
@@ -77,7 +85,7 @@ func main() {
 		}
 	}
 
-	filename_station := "data/station_data500.txt"
+	filename_station := "data/terminal.txt"
 	file, err = os.Open(filename_station)
 	if err != nil {
 		fmt.Println("Error Loading Station:", err)
@@ -85,7 +93,8 @@ func main() {
 		defer file.Close()
 
 		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
+		readSta := 0
+		for scanner.Scan() && readSta < stationCount {
 			line := scanner.Text()
 			parts := strings.Fields(line)
 			if len(parts) != 2 {
@@ -108,6 +117,7 @@ func main() {
 				world.Components.WeatherEntityToIndex[entityID] = len(world.Components.WeatherIndexComponents) - 1
 
 				stationSystem.AddEntityID(entityID)
+				readSta++
 
 			}
 		}
@@ -117,18 +127,11 @@ func main() {
 	}
 	// for i := 0; i < 100; i++ {
 
-	world.Update(1)
+	for i := 0; i < 100; i++ {
+		world.Update(1)
+		log.Printf("Run %d complete\n", i+1)
+	}
+
 	endTime := time.Now()
 	log.Println("Total update time: ", endTime.Sub(startTime))
-	// }
-	// }
-	// world.Update(1)
-	// }()
-
-	// addr := "0.0.0.0:6060" // pprof 服务监听端口
-	// log.Println("pprof server listening on", addr)
-	// if err := http.ListenAndServe(addr, nil); err != nil {
-	// 	log.Fatal(err)
-	// }
-
 }

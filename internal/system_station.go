@@ -108,33 +108,39 @@ func getWeatherFromFile(lat, lon float64) (t, precip, pressure float64) {
 
 func (s *StationSystem) Update(dt int64, cm *ComponentManager, w *World) {
 	log.Printf("StationSystem update...")
-	for entityID, weatherIndexComponent := range cm.WeatherIndexComponents {
-		station, exists := cm.StationPositionComponents[entityID]
-		if !exists {
-			continue
-		}
+	startTime := time.Now()
+	for i := range cm.StationPositionComponents {
+		_ = &cm.StationPositionComponents[i]
 
-		/**
-		先用读取文件的方式获取天气数据而不是API调用
-		*/
-		lat := float64(station.Lat)
-		lon := float64(station.Lon)
-
-		// fetchWeatherFromAPI(lat, lon)
-		// t, precip, pressure := getWeatherFromFile(lat, lon)
-
-		t := 30.0
-		precip := 10.0
-		pressure := 1013.25 + lat/lon
-
-		weatherIndexComponent.T = float64(t)
-		weatherIndexComponent.precipitation = float64(precip)
-		weatherIndexComponent.P = float64(pressure)
-		// log.Printf("GMT时刻：%d, 降水：%.2f mm/h, 温度：%.2f C, 气压：%.2f hPa", hours, weatherIndexComponent.precipitation, weatherIndexComponent.T, weatherIndexComponent.P)
-
-		// weather.RainRate += 0.05 * float64(dt)
-		// cm.WeatherIndexComponents[entityID] = weather
-		// fmt.Printf("[StationSystem] Entity %d: rain=%.2f\n", entityID, weather.RainRate)
 	}
+	// for i := range cm.WeatherIndexComponents {
+	// 	weatherComponent := &cm.WeatherIndexComponents[i]
+	// 	entityID := weatherComponent.EntityID
+
+	// 	stationIdx, exists := cm.StationEntityToIndex[entityID]
+	// 	if !exists {
+	// 		continue
+	// 	}
+	// 	station := &cm.StationPositionComponents[stationIdx]
+
+	// 	/**
+	// 	先用读取文件的方式获取天气数据而不是API调用
+	// 	*/
+	// 	lat := float64(station.Lat)
+	// 	lon := float64(station.Lon)
+
+	// 	// fetchWeatherFromAPI(lat, lon)
+	// 	// t, precip, pressure := getWeatherFromFile(lat, lon)
+
+	// 	t := 30.0
+	// 	precip := 10.0
+	// 	pressure := 1013.25 + lat/lon
+
+	// 	weatherComponent.T = t
+	// 	weatherComponent.precipitation = precip
+	// 	weatherComponent.P = pressure
+	// }
+	endTime := time.Now()
+	log.Printf("StationSystem update time: %v", endTime.Sub(startTime))
 
 }
