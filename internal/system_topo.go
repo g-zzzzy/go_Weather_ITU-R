@@ -3,6 +3,7 @@ package go_Weather_ITUR
 import (
 	"fmt"
 	"log"
+	"time"
 )
 
 type TopoSystem struct {
@@ -20,12 +21,15 @@ func NewTopoSystem(interval int64) *TopoSystem {
 
 func (s *TopoSystem) Update(dt int64, cm *ComponentManager, w *World) {
 	log.Printf("TopoSystem update...")
+	startTime := time.Now()
 	satelliteIDs, err := w.GetSystemEntityIDs("SatelliteSystem")
+	log.Printf("[TopoSystem] Satellite count: %d", len(satelliteIDs))
 	if err != nil {
 		fmt.Println("[TopoSystem] Error getting satellites:", err)
 		return
 	}
 	stationIDs, err := w.GetSystemEntityIDs("StationSystem")
+	log.Printf("[TopoSystem] Station count: %d", len(stationIDs))
 	if err != nil {
 		fmt.Println("[TopoSystem] Error getting stations:", err)
 		return
@@ -45,4 +49,6 @@ func (s *TopoSystem) Update(dt int64, cm *ComponentManager, w *World) {
 		}
 	}
 	log.Printf("TopoSystem: Link count: %d", cnt)
+	endTime := time.Now()
+	log.Printf("TopoSystem update time: %v", endTime.Sub(startTime))
 }
