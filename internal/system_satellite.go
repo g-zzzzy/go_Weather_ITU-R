@@ -23,7 +23,7 @@ func NewSatelliteSystem(interval int64) *SatelliteSystem {
 	}
 }
 
-func (s *SatelliteSystem) Update(dt int64, cm *ComponentManager, w *World) {
+func (s *SatelliteSystem) Update(dt int64, cm *ComponentManager, w *World, timestamp time.Time) {
 	log.Printf("SatelliteSystem update...")
 	startTime := time.Now()
 	count := 0
@@ -36,12 +36,9 @@ func (s *SatelliteSystem) Update(dt int64, cm *ComponentManager, w *World) {
 			continue
 		}
 
-		currentTime := time.Now().UTC()
-		year, month, day := currentTime.Date()
-		hour, min, sec := currentTime.Clock()
-		p, v := satellite.Propagate(sat.Satrec, year, int(month), day, hour, min, sec)
+		p, _ := satellite.Propagate(sat.Satrec, timestamp.Year(), int(timestamp.Month()), timestamp.Day(), timestamp.Hour(), timestamp.Minute(), timestamp.Second())
 
-		gmst := satellite.GSTimeFromDate(year, int(month), day, hour, min, sec)
+		gmst := satellite.GSTimeFromDate(timestamp.Year(), int(timestamp.Month()), timestamp.Day(), timestamp.Hour(), timestamp.Minute(), timestamp.Second())
 		alt, _, lla := satellite.ECIToLLA(p, gmst)
 
 		latitudeDeg := lla.Latitude * 180 / math.Pi
@@ -50,10 +47,9 @@ func (s *SatelliteSystem) Update(dt int64, cm *ComponentManager, w *World) {
 		altitudeMeters := alt * 1000
 
 		movementComponent.PosX, movementComponent.PosY, movementComponent.PosZ = latitudeDeg, longitudeDeg, altitudeMeters
-		movementComponent.VelX, movementComponent.VelY, movementComponent.VelZ = v.X, v.Y, v.Z
+		// movementComponent.VelX, movementComponent.VelY, movementComponent.VelZ = v.X, v.Y, v.Z
 	}
-	endTime := time.Now()
 	log.Printf("satellite count: %d", count)
-	log.Printf("SatelliteSystem update time: %v", endTime.Sub(startTime))
+	log.Printf("SatelliteSystem update time: %v", time.Since(startTime))
 
 }

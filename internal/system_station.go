@@ -101,44 +101,23 @@ func NewStationSystem(interval int64) *StationSystem {
 // 	return 0, 0, 0
 // }
 
-func (s *StationSystem) Update(dt int64, cm *ComponentManager, w *World) {
+func getWeatherBasedOnTerminal(stationPos *StationPositionComponent) EnvironmentIndex {
+	return EnvironmentIndex{Temperature2m: 10.0, Precipitation: 0.0, Pressure: 1010.0} // 返回一个环境指数，实际应用中应根据站点位置获取真实数据
+}
+func (s *StationSystem) Update(dt int64, cm *ComponentManager, w *World, t time.Time) {
 	log.Printf("StationSystem update...")
 	startTime := time.Now()
 	count := 0
-	for i := range cm.StationPositionComponents {
+	for i, link := range cm.LinkComponents {
+		idx := link.TargetID
+
+		stationPos := &cm.StationPositionComponents[idx]
+		EnvironmentIdx := getWeatherBasedOnTerminal(stationPos)
+		cm.LinkComponents[i].EnvironmentIdx = EnvironmentIdx
 		count++
-		_ = &cm.StationPositionComponents[i]
-
 	}
-	// for i := range cm.WeatherIndexComponents {
-	// 	weatherComponent := &cm.WeatherIndexComponents[i]
-	// 	entityID := weatherComponent.EntityID
 
-	// 	stationIdx, exists := cm.StationEntityToIndex[entityID]
-	// 	if !exists {
-	// 		continue
-	// 	}
-	// 	station := &cm.StationPositionComponents[stationIdx]
-
-	// 	/**
-	// 	先用读取文件的方式获取天气数据而不是API调用
-	// 	*/
-	// 	lat := float64(station.Lat)
-	// 	lon := float64(station.Lon)
-
-	// 	// fetchWeatherFromAPI(lat, lon)
-	// 	// t, precip, pressure := getWeatherFromFile(lat, lon)
-
-	// 	t := 30.0
-	// 	precip := 10.0
-	// 	pressure := 1013.25 + lat/lon
-
-	// 	weatherComponent.T = t
-	// 	weatherComponent.precipitation = precip
-	// 	weatherComponent.P = pressure
-	// }
-	endTime := time.Now()
 	log.Printf("Station count: %d", count)
-	log.Printf("StationSystem update time: %v", endTime.Sub(startTime))
+	log.Printf("StationSystem update time: %v", time.Since(startTime))
 
 }

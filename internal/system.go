@@ -1,7 +1,9 @@
 package go_Weather_ITUR
 
+import "time"
+
 type System interface {
-	Update(dt int64, cm *ComponentManager, w *World)
+	Update(dt int64, cm *ComponentManager, w *World, time time.Time)
 	// Remove(e BasicEntity)
 	GetInterval() int64
 	ShouldUpdate(elapsed int64) bool

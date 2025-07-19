@@ -19,7 +19,7 @@ func NewTopoSystem(interval int64) *TopoSystem {
 	}
 }
 
-func (s *TopoSystem) Update(dt int64, cm *ComponentManager, w *World) {
+func (s *TopoSystem) Update(dt int64, cm *ComponentManager, w *World, t time.Time) {
 	log.Printf("TopoSystem update...")
 	startTime := time.Now()
 	satelliteIDs, err := w.GetSystemEntityIDs("SatelliteSystem")
@@ -35,20 +35,23 @@ func (s *TopoSystem) Update(dt int64, cm *ComponentManager, w *World) {
 		return
 	}
 
+	// 清空现有的 LinkComponents 切片（在逻辑最前面添加）
+	cm.LinkComponents = cm.LinkComponents[:0]
+
 	// 简单实现：全连接
 	cnt := 0
 	for _, satID := range satelliteIDs {
+		sourceID := cm.MovementEntityToIndex[satID]
 		for _, staID := range stationIDs {
-			linkKey := LinkKey{SourceID: satID, TargetID: staID}
-			cm.LinkComponents[linkKey] = LinkComponent{
-				Connected: true,
-			}
+
+			cm.LinkComponents = append(cm.LinkComponents, LinkComponent{
+				SourceID: sourceID,
+				TargetID: cm.StationEntityToIndex[staID],
+			})
 			cnt++
-			// 调试输出
-			// fmt.Printf("[TopoSystem] Linked Sat %d <-> Sta %d\n", satID, staID)
+
 		}
 	}
 	log.Printf("TopoSystem: Link count: %d", cnt)
-	endTime := time.Now()
-	log.Printf("TopoSystem update time: %v", endTime.Sub(startTime))
+	log.Printf("TopoSystem update time: %v", time.Since(startTime))
 }

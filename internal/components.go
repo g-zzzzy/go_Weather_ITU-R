@@ -15,7 +15,6 @@ type SatelliteSGP4Component struct {
 type SatelliteMovementComponent struct {
 	EntityID         EntityID
 	PosX, PosY, PosZ float64
-	VelX, VelY, VelZ float64
 }
 
 type StationPositionComponent struct {
@@ -42,7 +41,15 @@ type AttenuationInputComponent struct {
 // 	Attenuation float64
 // }
 
+type EnvironmentIndex struct {
+	Temperature2m float64
+	Precipitation float64
+	Pressure      float64 // hPa
+}
+
 type LinkComponent struct {
-	Connected bool
-	Ar        float64
+	SourceID       int
+	TargetID       int
+	EnvironmentIdx EnvironmentIndex
+	Ar             float64
 }

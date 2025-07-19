@@ -31,13 +31,13 @@ func main() {
 	world := internal.NewWorld()
 
 	satelliteSystem := internal.NewSatelliteSystem(5)
-	stationSystem := internal.NewStationSystem(10)
 	topoSystem := internal.NewTopoSystem(10)
+	stationSystem := internal.NewStationSystem(10)
 	attenuationSystem := internal.NewAttenuationSystem(10)
 
 	world.AddSystem(satelliteSystem)
-	world.AddSystem(stationSystem)
 	world.AddSystem(topoSystem)
+	world.AddSystem(stationSystem)
 	world.AddSystem(attenuationSystem)
 
 	filename_tle := "data/satellite_4000.txt"
@@ -116,10 +116,6 @@ func main() {
 					Lon:      lon,
 				})
 				world.Components.StationEntityToIndex[entityID] = posIndex
-
-				weatherIndex := len(world.Components.WeatherComponents)
-				world.Components.WeatherComponents = append(world.Components.WeatherComponents, internal.WeatherComponent{EntityID: entityID})
-				world.Components.WeatherEntityToIndex[entityID] = weatherIndex
 				stationSystem.AddEntityID(entityID)
 				readSta++
 			}
