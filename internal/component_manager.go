@@ -10,5 +10,7 @@ type ComponentManager struct {
 	StationPositionComponents []StationPositionComponent
 	StationEntityToIndex      map[EntityID]int
 
-	LinkComponents []LinkComponent
+	// LinkComponents []LinkComponent
+	Links          []Link
+	StationWeather []EnvironmentIndex
 }

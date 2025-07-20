@@ -16,13 +16,14 @@ type World struct {
 func NewWorld() *World {
 	return &World{
 		Components: &ComponentManager{
-			// TLEComponents:               make(map[EntityID]TLEComponent),
-			// SatelliteSGP4Components:     make(map[EntityID]SatelliteSGP4Component),
+			TLEComponents:               make(map[EntityID]TLEComponent),
+			SatelliteSGP4Components:     make(map[EntityID]SatelliteSGP4Component),
 			SatelliteMovementComponents: make([]SatelliteMovementComponent, 0),
 			MovementEntityToIndex:       make(map[EntityID]int),
 			StationPositionComponents:   make([]StationPositionComponent, 0),
 			StationEntityToIndex:        make(map[EntityID]int),
-			LinkComponents:              make([]LinkComponent, 0),
+			Links:                       make([]Link, 0),
+			StationWeather:              make([]EnvironmentIndex, 0),
 		},
 		nextEntityID: 0,
 		Systems:      make([]System, 0),

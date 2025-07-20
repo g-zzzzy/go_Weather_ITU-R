@@ -20,8 +20,8 @@ func NewAttenuationSystem(interval int64) *AttenuationSystem {
 	}
 }
 
-func CalculateSatelliteLink(link *LinkComponent, satMovement *SatelliteMovementComponent, stationPos *StationPositionComponent) {
-	pre := link.EnvironmentIdx.Precipitation
+func CalculateSatelliteLink(link *Link, satMovement *SatelliteMovementComponent, stationPos *StationPositionComponent, pre float64) {
+
 	latGS, lonGS := stationPos.Lat, stationPos.Lon
 	el := utils.Elevation_angle(satMovement.PosZ, satMovement.PosX, satMovement.PosY, latGS, lonGS)
 	f := 22.5 // GHz
@@ -38,16 +38,18 @@ func (s *AttenuationSystem) Update(dt int64, cm *ComponentManager, w *World, t t
 	startTime := time.Now()
 	cnt := 0
 	linkIdx := 0
-	for satIdx := range cm.SatelliteMovementComponents {
-		sat := &cm.SatelliteMovementComponents[satIdx]
+	// 外层循环：遍历所有站点
+	for staIdx := range cm.StationPositionComponents {
+		sta := &cm.StationPositionComponents[staIdx]
+		pre := cm.StationWeather[staIdx].Precipitation // 当前站点的降水数据
 
-		// 批处理该卫星的所有 station links
-		for linkIdx < len(cm.LinkComponents) && cm.LinkComponents[linkIdx].SourceID == satIdx {
-			link := &cm.LinkComponents[linkIdx]
-			sta := &cm.StationPositionComponents[link.TargetID]
+		// 内层循环：批处理该站点的所有卫星链接（匹配 TargetID 为当前站点ID）
+		for linkIdx < len(cm.Links) && cm.Links[linkIdx].TargetID == staIdx {
+			link := &cm.Links[linkIdx]
+			sat := &cm.SatelliteMovementComponents[link.SourceID] // 链接对应的卫星
 
-			// 示例：计算衰减
-			CalculateSatelliteLink(link, sat, sta)
+			// 计算衰减（参数顺序保持不变，仅数据来源调整）
+			CalculateSatelliteLink(link, sat, sta, pre)
 
 			linkIdx++
 			cnt++

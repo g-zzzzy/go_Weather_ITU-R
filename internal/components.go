@@ -53,3 +53,9 @@ type LinkComponent struct {
 	EnvironmentIdx EnvironmentIndex
 	Ar             float64
 }
+
+type Link struct {
+	SourceID int
+	TargetID int
+	Ar       float64
+}

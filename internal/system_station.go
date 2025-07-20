@@ -107,17 +107,33 @@ func getWeatherBasedOnTerminal(stationPos *StationPositionComponent) Environment
 func (s *StationSystem) Update(dt int64, cm *ComponentManager, w *World, t time.Time) {
 	log.Printf("StationSystem update...")
 	startTime := time.Now()
-	count := 0
-	for i, link := range cm.LinkComponents {
-		idx := link.TargetID
-
-		stationPos := &cm.StationPositionComponents[idx]
-		EnvironmentIdx := getWeatherBasedOnTerminal(stationPos)
-		cm.LinkComponents[i].EnvironmentIdx = EnvironmentIdx
-		count++
+	stationCount := len(cm.StationPositionComponents)
+	// 如果 StationWeather 长度不足，扩容（或初始化）
+	if len(cm.StationWeather) < stationCount {
+		// 创建新切片，长度为 stationCount，保留原有数据（如果有）
+		newWeather := make([]EnvironmentIndex, stationCount)
+		// copy(newWeather, cm.StationWeather)
+		cm.StationWeather = newWeather
 	}
+	cnt := 0
+	for i := range cm.StationPositionComponents {
 
-	log.Printf("Station count: %d", count)
+		stationPos := &cm.StationPositionComponents[i]
+		EnvironmentIndex := getWeatherBasedOnTerminal(stationPos)
+		cm.StationWeather[i] = EnvironmentIndex
+		cnt++
+	}
+	// for i, link := range cm.LinkComponents {
+	// 	idx := link.TargetID
+
+	// 	stationPos := &cm.StationPositionComponents[idx]
+	// 	EnvironmentIdx := getWeatherBasedOnTerminal(stationPos)
+	// 	cm.LinkComponents[i].EnvironmentIdx = EnvironmentIdx
+	// 	count++
+	// }
+
+	// log.Printf("Station count: %d", count)
+	log.Printf("weather update count: %d", cnt)
 	log.Printf("StationSystem update time: %v", time.Since(startTime))
 
 }
