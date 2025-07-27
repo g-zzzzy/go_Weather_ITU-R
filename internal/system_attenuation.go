@@ -38,6 +38,7 @@ func (s *AttenuationSystem) Update(dt int64, cm *ComponentManager, w *World, t t
 	startTime := time.Now()
 	cnt := 0
 	linkIdx := 0
+
 	// 外层循环：遍历所有站点
 	for staIdx := range cm.StationPositionComponents {
 		sta := &cm.StationPositionComponents[staIdx]

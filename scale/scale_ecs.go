@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/joshuaferrara/go-satellite"
 )
@@ -133,4 +134,5 @@ func main() {
 
 	endTime := time.Now()
 	log.Println("Total update time: ", endTime.Sub(startTime))
+	log.Println("linkCache size:", unsafe.Sizeof(internal.Link{}))
 }
