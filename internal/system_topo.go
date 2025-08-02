@@ -24,13 +24,11 @@ func (s *TopoSystem) Update(dt int64, cm *ComponentManager, w *World, t time.Tim
 	log.Printf("TopoSystem update...")
 	startTime := time.Now()
 	satelliteIDs, err := w.GetSystemEntityIDs("SatelliteSystem")
-	// log.Printf("[TopoSystem] Satellite count: %d", len(satelliteIDs))
 	if err != nil {
 		fmt.Println("[TopoSystem] Error getting satellites:", err)
 		return
 	}
 	stationIDs, err := w.GetSystemEntityIDs("StationSystem")
-	// log.Printf("[TopoSystem] Station count: %d", len(stationIDs))
 	if err != nil {
 		fmt.Println("[TopoSystem] Error getting stations:", err)
 		return
@@ -41,13 +39,12 @@ func (s *TopoSystem) Update(dt int64, cm *ComponentManager, w *World, t time.Tim
 
 	// 简单实现：全连接
 	cnt := 0
-	for _, satID := range satelliteIDs {
-		sourceID := cm.MovementEntityToIndex[satID]
+	for _, sourceID := range satelliteIDs {
 		for _, staID := range stationIDs {
 
 			cm.Links = append(cm.Links, Link{
 				SourceID: sourceID,
-				TargetID: cm.StationEntityToIndex[staID],
+				TargetID: staID,
 			})
 			cnt++
 

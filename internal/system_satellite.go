@@ -27,14 +27,10 @@ func (s *SatelliteSystem) Update(dt int64, cm *ComponentManager, w *World, times
 	log.Printf("SatelliteSystem update...")
 	startTime := time.Now()
 	count := 0
-	for i := range cm.SatelliteMovementComponents {
+	for _, entityID := range s.GetEntityIDs() {
 		count++
-		movementComponent := &cm.SatelliteMovementComponents[i]
-		entityID := movementComponent.EntityID
-		sat, exists := cm.SatelliteSGP4Components[entityID]
-		if !exists {
-			continue
-		}
+		movementComponent := &cm.SatelliteMovementComponents[entityID]
+		sat := cm.SatelliteSGP4Components[entityID]
 
 		p, _ := satellite.Propagate(sat.Satrec, timestamp.Year(), int(timestamp.Month()), timestamp.Day(), timestamp.Hour(), timestamp.Minute(), timestamp.Second())
 
