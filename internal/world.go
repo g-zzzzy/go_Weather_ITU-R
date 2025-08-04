@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/joshuaferrara/go-satellite"
@@ -15,7 +16,7 @@ import (
 type EntityID int
 
 type World struct {
-	Systems      []System
+	Systems      map[SystemType]System
 	Components   *ComponentManager
 	nextEntityID EntityID
 }
@@ -33,7 +34,7 @@ func NewWorld() *World {
 			StationWeather: make([]EnvironmentIndex, 0),
 		},
 		nextEntityID: 0,
-		Systems:      make([]System, 0),
+		Systems:      make(map[SystemType]System),
 	}
 }
 
@@ -153,21 +154,51 @@ func (w *World) NewEntity() EntityID {
 	return id
 }
 
-func (w *World) AddSystem(s System) {
-	w.Systems = append(w.Systems, s)
+func (w *World) AddSystem(systemType SystemType, s System) {
+	if w.Systems == nil {
+		w.Systems = make(map[SystemType]System)
+	}
+	w.Systems[systemType] = s
 }
 
 func (w *World) Update(dt int64) {
-	// startTime := time.Now()
-	for _, system := range w.Systems {
-		time := time.Now()
-		system.Update(dt, w.Components, w, time)
+	var wg sync.WaitGroup
+	now := time.Now()
 
-		// system.AddElapsed(dt)
-		// if system.ShouldUpdate(system.GetElapsed()) {
-		// 	system.Update(dt, w.Components, w)
-		// }
+	// 并行更新 Satellite 和 Station
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		if sys, ok := w.Systems[SatelliteSystemType]; ok {
+			sys.Update(dt, w.Components, w, now)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		if sys, ok := w.Systems[StationSystemType]; ok {
+			sys.Update(dt, w.Components, w, now)
+		}
+	}()
+	wg.Wait()
+
+	// 顺序更新 Topo 和 Attenuation
+	if sys, ok := w.Systems[TopoSystemType]; ok {
+		sys.Update(dt, w.Components, w, now)
 	}
+	if sys, ok := w.Systems[AttenuationSystemType]; ok {
+		sys.Update(dt, w.Components, w, now)
+	}
+
+	// startTime := time.Now()
+	// for _, system := range w.Systems {
+	// 	time := time.Now()
+	// 	system.Update(dt, w.Components, w, time)
+
+	// 	// system.AddElapsed(dt)
+	// 	// if system.ShouldUpdate(system.GetElapsed()) {
+	// 	// 	system.Update(dt, w.Components, w)
+	// 	// }
+	// }
 	// endTime := time.Now()
 	// log.Printf("Update time: %v", endTime.Sub(startTime))
 }

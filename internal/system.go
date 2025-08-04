@@ -2,6 +2,15 @@ package go_Weather_ITUR
 
 import "time"
 
+type SystemType string
+
+const (
+	SatelliteSystemType   SystemType = "satellite"
+	StationSystemType     SystemType = "station"
+	TopoSystemType        SystemType = "topo"
+	AttenuationSystemType SystemType = "attenuation"
+)
+
 type System interface {
 	Update(dt int64, cm *ComponentManager, w *World, time time.Time)
 	// Remove(e BasicEntity)

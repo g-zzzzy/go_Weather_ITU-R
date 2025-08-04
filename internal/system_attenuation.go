@@ -4,6 +4,7 @@ import (
 	"go_Weather_ITUR/internal/itur"
 	"go_Weather_ITUR/internal/utils"
 	"log"
+	"sync"
 	"time"
 )
 
@@ -52,15 +53,45 @@ func (s *AttenuationSystem) Update(dt int64, cm *ComponentManager, w *World, t t
 	cnt := 0
 	// linkIdx := 0
 
-	for i := range cm.Links {
-		satID := cm.Links[i].SourceID
-		staID := cm.Links[i].TargetID
-		sta := &cm.StationPositionComponents[staID]
-		pre := cm.StationWeather[staID].Precipitation
-		sat := &cm.SatelliteMovementComponents[satID]
-		cm.Links[i].Ar = CalculateSatelliteLink(sat, sta, pre)
-		cnt++
+	// for i := range cm.Links {
+	// 	satID := cm.Links[i].SourceID
+	// 	staID := cm.Links[i].TargetID
+	// 	sta := &cm.StationPositionComponents[staID]
+	// 	pre := cm.StationWeather[staID].Precipitation
+	// 	sat := &cm.SatelliteMovementComponents[satID]
+	// 	cm.Links[i].Ar = CalculateSatelliteLink(sat, sta, pre)
+	// 	cnt++
+	// }
+
+	numWorkers := 4
+	linkCount := len(cm.Links)
+	batchSize := (linkCount + numWorkers - 1) / numWorkers
+
+	var wg sync.WaitGroup
+	wg.Add(numWorkers)
+
+	for worker := 0; worker < numWorkers; worker++ {
+		start := worker * batchSize
+		end := (worker + 1) * batchSize
+		if end > linkCount {
+			end = linkCount
+		}
+
+		go func(start, end int) {
+			defer wg.Done()
+			for i := start; i < end; i++ {
+				satID := cm.Links[i].SourceID
+				staID := cm.Links[i].TargetID
+				sta := &cm.StationPositionComponents[staID]
+				pre := cm.StationWeather[staID].Precipitation
+				sat := &cm.SatelliteMovementComponents[satID]
+				cm.Links[i].Ar = CalculateSatelliteLink(sat, sta, pre)
+				cnt++
+			}
+		}(start, end)
 	}
+
+	wg.Wait()
 
 	log.Printf("Attenuation computed count: %d", cnt)
 	log.Printf("AttenuationSystem update time: %v", time.Since(startTime))

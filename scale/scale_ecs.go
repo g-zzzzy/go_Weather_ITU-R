@@ -5,6 +5,7 @@ import (
 	internal "go_Weather_ITUR/internal"
 	"log"
 	"os"
+	"runtime"
 	"strconv"
 	"time"
 	"unsafe"
@@ -24,6 +25,7 @@ func main() {
 	fmt.Printf("ECS running with %d stations and %d satellites for %d rounds\n", stationCount, satelliteCount, round)
 
 	startTime := time.Now()
+	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	world := internal.NewWorld()
 
@@ -32,10 +34,10 @@ func main() {
 	stationSystem := internal.NewStationSystem(10)
 	attenuationSystem := internal.NewAttenuationSystem(10)
 
-	world.AddSystem(satelliteSystem)
-	world.AddSystem(topoSystem)
-	world.AddSystem(stationSystem)
-	world.AddSystem(attenuationSystem)
+	world.AddSystem(internal.SatelliteSystemType, satelliteSystem)
+	world.AddSystem(internal.StationSystemType, stationSystem)
+	world.AddSystem(internal.TopoSystemType, topoSystem)
+	world.AddSystem(internal.AttenuationSystemType, attenuationSystem)
 
 	world.InitSatellite(satelliteCount, satelliteSystem)
 	world.InitStation(stationCount, stationSystem)
