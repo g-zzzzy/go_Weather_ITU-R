@@ -12,22 +12,25 @@ import (
 )
 
 func main() {
-	if len(os.Args) != 4 {
-		log.Fatalf("Usage: %s <station_num> <satellite_nums> <round>", os.Args[0])
+	if len(os.Args) != 7 {
+		log.Fatalf("Usage: %s <station_num> <satellite_nums> <round> <numWGs> <numBlocks> <parallelFlag>", os.Args[0])
 	}
 	// 解析参数
 	stationCount, err1 := strconv.Atoi(os.Args[1])
 	satelliteCount, err2 := strconv.Atoi(os.Args[2])
 	round, err3 := strconv.Atoi(os.Args[3])
-	if err1 != nil || err2 != nil || err3 != nil {
+	numWGs, err4 := strconv.Atoi(os.Args[4])
+	numBlocks, err5 := strconv.Atoi(os.Args[5])
+	parallelFlag, err6 := strconv.Atoi(os.Args[6])
+	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil || err6 != nil {
 		log.Fatalf("Invalid arguments: %v, %v, %v", err1, err2, err3)
 	}
-	fmt.Printf("ECS running with %d stations and %d satellites for %d rounds\n", stationCount, satelliteCount, round)
+	fmt.Printf("ECS running with %d stations, %d satellites, %d numWGs and %d numBlocks for %d rounds in %d parallel pattern\n", stationCount, satelliteCount, numWGs, numBlocks, round, parallelFlag)
 
 	startTime := time.Now()
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	world := internal.NewWorld()
+	world := internal.NewWorld(numBlocks, numWGs, parallelFlag)
 
 	satelliteSystem := internal.NewSatelliteSystem(5)
 	topoSystem := internal.NewTopoSystem(10)

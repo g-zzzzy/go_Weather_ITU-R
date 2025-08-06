@@ -19,9 +19,12 @@ type World struct {
 	Systems      map[SystemType]System
 	Components   *ComponentManager
 	nextEntityID EntityID
+	numWGs       int // Number of working groups
+	numBlocks    int
+	parallelFlag int // 0 = block-level parallel, 1 = intra-block parallel
 }
 
-func NewWorld() *World {
+func NewWorld(numBlocks, numWGs, parallelFlag int) *World {
 	return &World{
 		Components: &ComponentManager{
 			// TLEComponents:               make(map[EntityID]TLEComponent),
@@ -30,11 +33,14 @@ func NewWorld() *World {
 			// MovementEntityToIndex:       make(map[EntityID]int),
 			StationPositionComponents: make([]StationPositionComponent, 0),
 			// StationEntityToIndex:        make(map[EntityID]int),
-			Links:          make([]Link, 0),
+			Links:          make([][]Link, 0),
 			StationWeather: make([]EnvironmentIndex, 0),
 		},
 		nextEntityID: 0,
 		Systems:      make(map[SystemType]System),
+		numWGs:       numWGs,
+		numBlocks:    numBlocks,
+		parallelFlag: parallelFlag, // Default to block-level parallel
 	}
 }
 

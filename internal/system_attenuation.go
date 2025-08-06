@@ -50,50 +50,80 @@ func CalculateSatelliteLink(satMovement *SatelliteMovementComponent, stationPos 
 func (s *AttenuationSystem) Update(dt int64, cm *ComponentManager, w *World, t time.Time) {
 	log.Printf("AttenuationSystem update...")
 	startTime := time.Now()
-	cnt := 0
-	// linkIdx := 0
 
-	// for i := range cm.Links {
-	// 	satID := cm.Links[i].SourceID
-	// 	staID := cm.Links[i].TargetID
-	// 	sta := &cm.StationPositionComponents[staID]
-	// 	pre := cm.StationWeather[staID].Precipitation
-	// 	sat := &cm.SatelliteMovementComponents[satID]
-	// 	cm.Links[i].Ar = CalculateSatelliteLink(sat, sta, pre)
-	// 	cnt++
-	// }
+	flag := w.parallelFlag // 0 = 块间并行，1 = 块内并行
+	log.Printf("AttenuationSystem parallel flag: %d", flag)
+	numWGs := w.numWGs
+	linkBlocks := cm.Links
 
-	numWorkers := 4
-	linkCount := len(cm.Links)
-	batchSize := (linkCount + numWorkers - 1) / numWorkers
+	var cnt int
+	var mu sync.Mutex
 
-	var wg sync.WaitGroup
-	wg.Add(numWorkers)
-
-	for worker := 0; worker < numWorkers; worker++ {
-		start := worker * batchSize
-		end := (worker + 1) * batchSize
-		if end > linkCount {
-			end = linkCount
+	switch flag {
+	case 0: // 块间并行
+		var wg sync.WaitGroup
+		for _, block := range linkBlocks {
+			wg.Add(1)
+			go func(block []Link) {
+				defer wg.Done()
+				localCount := 0
+				for i := range block {
+					updateLink(&block[i], cm, t)
+					localCount++
+				}
+				mu.Lock()
+				cnt += localCount
+				mu.Unlock()
+			}(block)
 		}
-
-		go func(start, end int) {
-			defer wg.Done()
-			for i := start; i < end; i++ {
-				satID := cm.Links[i].SourceID
-				staID := cm.Links[i].TargetID
-				sta := &cm.StationPositionComponents[staID]
-				pre := cm.StationWeather[staID].Precipitation
-				sat := &cm.SatelliteMovementComponents[satID]
-				cm.Links[i].Ar = CalculateSatelliteLink(sat, sta, pre)
-				cnt++
-			}
-		}(start, end)
+		wg.Wait()
+	case 1: // 块内并行
+		for _, block := range linkBlocks {
+			parallelUpdateBlock(block, cm, &cnt, t, numWGs, &mu)
+		}
+	default:
+		log.Printf("Invalid parallel flag: %d", flag)
 	}
-
-	wg.Wait()
 
 	log.Printf("Attenuation computed count: %d", cnt)
 	log.Printf("AttenuationSystem update time: %v", time.Since(startTime))
 
+}
+
+func parallelUpdateBlock(block []Link, cm *ComponentManager, cnt *int, t time.Time, numWGs int, mu *sync.Mutex) {
+	var wg sync.WaitGroup
+	n := len(block)
+	if n == 0 {
+		return
+	}
+
+	chunkSize := (n + numWGs - 1) / numWGs
+	for i := 0; i < n; i += chunkSize {
+		end := i + chunkSize
+		if end > n {
+			end = n
+		}
+		wg.Add(1)
+		go func(links []Link) {
+			defer wg.Done()
+			localCount := 0
+			for i := range links {
+				updateLink(&links[i], cm, t)
+				localCount++
+			}
+			mu.Lock()
+			*cnt += localCount
+			mu.Unlock()
+		}(block[i:end])
+	}
+	wg.Wait()
+}
+
+func updateLink(link *Link, cm *ComponentManager, t time.Time) {
+	satID := link.SourceID
+	staID := link.TargetID
+	sta := &cm.StationPositionComponents[staID]
+	pre := cm.StationWeather[staID].Precipitation
+	sat := &cm.SatelliteMovementComponents[satID]
+	CalculateUpdateSatelliteLink(link, sat, sta, pre)
 }
