@@ -51,39 +51,31 @@ func (s *AttenuationSystem) Update(dt int64, cm *ComponentManager, w *World, t t
 	log.Printf("AttenuationSystem update...")
 	startTime := time.Now()
 
-	flag := w.parallelFlag // 0 = 块间并行，1 = 块内并行
-	log.Printf("AttenuationSystem parallel flag: %d", flag)
-	numWGs := w.numWGs
+	// flag := w.parallelFlag // 0 = 块间并行，1 = 块内并行
+	// log.Printf("AttenuationSystem parallel flag: %d", flag)
+	// numWGs := w.numWGs
 	linkBlocks := cm.Links
 
 	var cnt int
 	var mu sync.Mutex
 
-	switch flag {
-	case 0: // 块间并行
-		var wg sync.WaitGroup
-		for _, block := range linkBlocks {
-			wg.Add(1)
-			go func(block []Link) {
-				defer wg.Done()
-				localCount := 0
-				for i := range block {
-					updateLink(&block[i], cm, t)
-					localCount++
-				}
-				mu.Lock()
-				cnt += localCount
-				mu.Unlock()
-			}(block)
-		}
-		wg.Wait()
-	case 1: // 块内并行
-		for _, block := range linkBlocks {
-			parallelUpdateBlock(block, cm, &cnt, t, numWGs, &mu)
-		}
-	default:
-		log.Printf("Invalid parallel flag: %d", flag)
+	// 块间并行
+	var wg sync.WaitGroup
+	for _, block := range linkBlocks {
+		wg.Add(1)
+		go func(block []Link) {
+			defer wg.Done()
+			localCount := 0
+			for i := range block {
+				updateLink(&block[i], cm, t)
+				localCount++
+			}
+			mu.Lock()
+			cnt += localCount
+			mu.Unlock()
+		}(block)
 	}
+	wg.Wait()
 
 	log.Printf("Attenuation computed count: %d", cnt)
 	log.Printf("AttenuationSystem update time: %v", time.Since(startTime))
@@ -125,5 +117,15 @@ func updateLink(link *Link, cm *ComponentManager, t time.Time) {
 	sta := &cm.StationPositionComponents[staID]
 	pre := cm.StationWeather[staID].Precipitation
 	sat := &cm.SatelliteMovementComponents[satID]
-	CalculateUpdateSatelliteLink(link, sat, sta, pre)
+	// CalculateUpdateSatelliteLink(link, sat, sta, pre)
+
+	latGS, lonGS := sta.Lat, sta.Lon
+	el := utils.Elevation_angle(sat.PosZ, sat.PosX, sat.PosY, latGS, lonGS)
+	f := 22.5 // GHz
+	p := 0.1
+	hs := 0.1
+	R001 := pre // mm/h
+	tau := 45.0 // dB
+	var Ls float64
+	link.Ar = itur.RainAttenuation(latGS, lonGS, f, el, hs, p, R001, tau, Ls)
 }

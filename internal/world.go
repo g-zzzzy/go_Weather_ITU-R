@@ -45,7 +45,7 @@ func NewWorld(numBlocks, numWGs, parallelFlag int) *World {
 }
 
 func (world *World) InitSatellite(satelliteCount int, satelliteSystem *SatelliteSystem) {
-	filename_tle := "data/satellite_4000.txt"
+	filename_tle := "data/satellite_20000.txt"
 	file, err := os.Open(filename_tle)
 	if err != nil {
 		fmt.Println("Error Loading TLE:", err)
