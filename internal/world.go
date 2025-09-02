@@ -44,6 +44,145 @@ func NewWorld(numBlocks, numWGs, parallelFlag int) *World {
 	}
 }
 
+func (world *World) InitStationRange(start, end int, stationSystem *StationSystem) {
+	filename_station := "data/terminal.txt"
+	file, err := os.Open(filename_station)
+	if err != nil {
+		fmt.Printf("Error Loading Station file %s: %v\n", filename_station, err)
+		return
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	currentTermID := 0 // 记录当前读取到的终端全局序号
+	loadedCount := 0   // 记录在范围内实际加载的终端数量
+
+	// 循环读取文件，直到覆盖目标范围或文件结束
+	for currentTermID < end {
+		// 读取一行终端数据
+		if !scanner.Scan() {
+			break // 文件已读取完毕
+		}
+		line := scanner.Text()
+		parts := strings.Fields(line)
+
+		// 校验数据格式（必须包含经纬度两个字段）
+		if len(parts) != 2 {
+			currentTermID++
+			continue // 跳过格式错误的行
+		}
+
+		// 解析经纬度
+		lat, err1 := strconv.ParseFloat(parts[0], 64)
+		lon, err2 := strconv.ParseFloat(parts[1], 64)
+		if err1 != nil || err2 != nil {
+			fmt.Printf("Invalid coordinates at term %d: lat err=%v, lon err=%v\n", currentTermID, err1, err2)
+			currentTermID++
+			continue
+		}
+
+		// 只处理 [start, end) 范围内的终端
+		if currentTermID >= start && currentTermID < end {
+			// 使用全局序号作为实体ID，确保分布式环境下ID唯一
+			entityID := EntityID(loadedCount)
+
+			// 确保切片容量足够，避免索引越界
+			for len(world.Components.StationPositionComponents) <= int(entityID) {
+				world.Components.StationPositionComponents = append(
+					world.Components.StationPositionComponents,
+					StationPositionComponent{},
+				)
+			}
+			// 直接在对应索引位置赋值（而非append，避免ID错乱）
+			world.Components.StationPositionComponents[entityID] = StationPositionComponent{
+				EntityID: entityID,
+				Lat:      lat,
+				Lon:      lon,
+			}
+
+			// 初始化对应的天气组件
+			for len(world.Components.StationWeather) <= int(entityID) {
+				world.Components.StationWeather = append(
+					world.Components.StationWeather,
+					EnvironmentIndex{},
+				)
+			}
+			world.Components.StationWeather[entityID] = EnvironmentIndex{}
+
+			// 添加到终端系统管理
+			stationSystem.AddEntityID(entityID)
+			loadedCount++
+		}
+
+		currentTermID++ // 无论是否加载，都推进全局序号
+	}
+
+	// 处理扫描过程中可能出现的错误
+	if err := scanner.Err(); err != nil {
+		fmt.Printf("Station file scanner error: %v\n", err)
+	}
+
+	fmt.Printf("Successfully loaded %d stations (range: [%d, %d))\n", loadedCount, start, end)
+}
+
+func (world *World) InitSatelliteRange(start, end int, satelliteSystem *SatelliteSystem) {
+	// Initialization logic if needed
+	filename_tle := "data/satellite_20000.txt"
+	file, err := os.Open(filename_tle)
+	if err != nil {
+		fmt.Println("Error Loading TLE:", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	currentSatID := 0 // 记录当前读取到的卫星序号（从0开始）
+	readCount := 0    // 记录已加载的卫星数量
+	for currentSatID < end {
+		if !scanner.Scan() {
+			break
+		}
+		l1 := scanner.Text()
+
+		if !scanner.Scan() {
+			break
+		}
+		l2 := scanner.Text()
+		if currentSatID >= start && currentSatID < end {
+			entityID := EntityID(currentSatID)
+			tleComponent := TLEComponent{
+				Line1:     l1,
+				Line2:     l2,
+				GravConst: "wgs72",
+			}
+			satelliteSGP4Component := SatelliteSGP4Component{
+				// Satrec: satellite.TLEToSat(tleComponent.Line1, tleComponent.Line2, tleComponent.GravConst),
+				Satrec: satellite.ParseTLE(tleComponent.Line1, tleComponent.Line2, tleComponent.GravConst),
+			}
+			for len(world.Components.SatelliteSGP4Components) <= int(entityID) {
+				world.Components.SatelliteSGP4Components = append(world.Components.SatelliteSGP4Components, SatelliteSGP4Component{})
+			}
+			world.Components.SatelliteSGP4Components[entityID] = satelliteSGP4Component
+
+			movementComp := SatelliteMovementComponent{EntityID: entityID}
+			for len(world.Components.SatelliteMovementComponents) <= int(entityID) {
+				world.Components.SatelliteMovementComponents = append(world.Components.SatelliteMovementComponents, SatelliteMovementComponent{})
+			}
+			world.Components.SatelliteMovementComponents = append(world.Components.SatelliteMovementComponents, movementComp)
+			// world.Components.MovementEntityToIndex[entityID] = len(world.Components.SatelliteMovementComponents) - 1
+
+			satelliteSystem.AddEntityID(entityID)
+			readCount++
+		}
+		currentSatID++
+	}
+	// 处理扫描错误
+	if err := scanner.Err(); err != nil {
+		fmt.Printf("Scanner Error: %v\n", err)
+	}
+
+	fmt.Printf("Loaded %d satellites (range: [%d, %d))\n", readCount, start, end)
+}
+
 func (world *World) InitSatellite(satelliteCount int, satelliteSystem *SatelliteSystem) {
 	filename_tle := "data/satellite_20000.txt"
 	file, err := os.Open(filename_tle)
