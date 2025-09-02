@@ -18,8 +18,7 @@ var (
 	nodeID    = flag.Int("node-id", 3, "当前节点ID（3~6）")
 	totalSat  = flag.Int("total-sat", 20000, "总卫星数量")
 	totalTerm = flag.Int("total-term", 2000, "总终端数量")
-	redisAddr = flag.String("redis-addr", "localhost:6379", "Redis地址")
-	dataDir   = flag.String("data-dir", "data", "数据文件目录")
+	redisAddr = flag.String("redis-addr", "localhost:6380", "Redis地址")
 )
 
 // 全局缓存所有卫星位置（用于链路计算）
