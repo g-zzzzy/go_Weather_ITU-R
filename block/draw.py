@@ -30,4 +30,4 @@ plt.title("Terminal Groups Distribution (Morton Partition)")
 plt.legend()
 plt.grid(True)
 # 保存图表到文件，支持png、pdf、svg等多种格式
-plt.savefig("terminal_groups_distribution.png", dpi=300, bbox_inches="tight")
+plt.savefig("hilbert200.png", dpi=300, bbox_inches="tight")

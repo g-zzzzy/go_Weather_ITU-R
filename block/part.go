@@ -35,12 +35,54 @@ func morton(x, y uint32) uint64 {
 	return ans
 }
 
-func partitionStations(stations []Station, groups int) [][]Station {
-	// 1. Morton 编码
-	Nx, Ny := uint32(2048), uint32(1024)
-	for i := range stations {
-		xi, yi := normalize(stations[i].Lon, stations[i].Lat, Nx, Ny)
-		stations[i].Key = morton(xi, yi)
+func hilbertXYToIndex(n, x, y int) int {
+	index := 0
+	s := n / 2
+	for s > 0 {
+		rx := 0
+		ry := 0
+		if (x & s) > 0 {
+			rx = 1
+		}
+		if (y & s) > 0 {
+			ry = 1
+		}
+		index += s * s * ((3 * rx) ^ ry)
+		x, y = rot(s, x, y, rx, ry)
+		s /= 2
+	}
+	return index
+}
+
+func rot(n, x, y, rx, ry int) (int, int) {
+	if ry == 0 {
+		if rx == 1 {
+			x = n - 1 - x
+			y = n - 1 - y
+		}
+		x, y = y, x
+	}
+	return x, y
+}
+
+func partitionStations(stations []Station, groups int, mode string) [][]Station {
+	switch mode {
+	case "morton":
+		// 1. Morton 编码
+		Nx, Ny := uint32(2048), uint32(1024)
+		for i := range stations {
+			xi, yi := normalize(stations[i].Lon, stations[i].Lat, Nx, Ny)
+			stations[i].Key = morton(xi, yi)
+		}
+	case "hilbert":
+		// 2. Hilbert 编码
+		for i := range stations {
+			x, y := normalize(stations[i].Lon, stations[i].Lat, 2048, 2048)
+			stations[i].Key = uint64(hilbertXYToIndex(2048, int(x), int(y)))
+		}
+		// log.Fatalf("Hilbert partitioning not implemented")
+	default:
+		log.Fatalf("Unknown partitioning mode: %s", mode)
 	}
 
 	// 2. 排序
@@ -64,16 +106,23 @@ func partitionStations(stations []Station, groups int) [][]Station {
 }
 
 func main() {
-	if len(os.Args) != 3 {
-		log.Fatalf("Usage: %s <terminal_num><group_num>", os.Args[0])
+	if len(os.Args) != 4 {
+		log.Fatalf("Usage: %s <terminal_num><group_num><motron|hilbert>", os.Args[0])
 	}
 	terminalNum, err1 := strconv.Atoi(os.Args[1])
 	groupNum, err2 := strconv.Atoi(os.Args[2])
+	mode, err3 := os.Args[3], error(nil)
 	if err1 != nil {
 		log.Fatalf("Invalid terminal_num: %v", err1)
 	}
 	if err2 != nil {
 		log.Fatalf("Invalid group_num: %v", err2)
+	}
+	if mode != "morton" && mode != "hilbert" {
+		err3 = fmt.Errorf("mode must be 'morton' or 'hilbert'")
+	}
+	if err3 != nil {
+		log.Fatalf("Invalid mode: %v", err3)
 	}
 
 	stations := make([]Station, 0, terminalNum)
@@ -112,7 +161,7 @@ func main() {
 			fmt.Println("Scanner Error: ", err)
 		}
 	}
-	terminalGouped := partitionStations(stations, groupNum)
+	terminalGouped := partitionStations(stations, groupNum, mode)
 	for g, group := range terminalGouped {
 		outFileName := fmt.Sprintf("data/terminals_group_%d.txt", g)
 		outFile, err := os.Create(outFileName)
