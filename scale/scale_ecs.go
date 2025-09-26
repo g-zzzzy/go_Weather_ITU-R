@@ -30,7 +30,7 @@ func main() {
 	startTime := time.Now()
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	world := internal.NewWorld(numBlocks, numWGs, parallelFlag)
+	world := internal.NewWorld(numBlocks, numWGs, parallelFlag, satelliteCount)
 
 	satelliteSystem := internal.NewSatelliteSystem(5)
 	topoSystem := internal.NewTopoSystem(10)

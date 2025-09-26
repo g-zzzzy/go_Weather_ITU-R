@@ -22,9 +22,10 @@ type World struct {
 	numWGs       int // Number of working groups
 	numBlocks    int
 	parallelFlag int // 0 = block-level parallel, 1 = intra-block parallel
+	GlobalIDs    []EntityID
 }
 
-func NewWorld(numBlocks, numWGs, parallelFlag int) *World {
+func NewWorld(numBlocks, numWGs, parallelFlag, totalSat int) *World {
 	return &World{
 		Components: &ComponentManager{
 			// TLEComponents:               make(map[EntityID]TLEComponent),
@@ -33,8 +34,9 @@ func NewWorld(numBlocks, numWGs, parallelFlag int) *World {
 			// MovementEntityToIndex:       make(map[EntityID]int),
 			StationPositionComponents: make([]StationPositionComponent, 0),
 			// StationEntityToIndex:        make(map[EntityID]int),
-			Links:          make([][]Link, 0),
-			StationWeather: make([]EnvironmentIndex, 0),
+			Links:              make([][]Link, 0),
+			StationWeather:     make([]EnvironmentIndex, 0),
+			GlobalSatPositions: make([]SatelliteMovementComponent, totalSat), // Preallocate for all satellites
 		},
 		nextEntityID: 0,
 		Systems:      make(map[SystemType]System),

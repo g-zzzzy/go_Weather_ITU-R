@@ -116,7 +116,7 @@ func updateLink(link *Link, cm *ComponentManager, t time.Time) {
 	staID := link.TargetID
 	sta := &cm.StationPositionComponents[staID]
 	pre := cm.StationWeather[staID].Precipitation
-	sat := &cm.SatelliteMovementComponents[satID]
+	sat := &cm.GlobalSatPositions[satID]
 	// CalculateUpdateSatelliteLink(link, sat, sta, pre)
 
 	latGS, lonGS := sta.Lat, sta.Lon

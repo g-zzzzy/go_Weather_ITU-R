@@ -22,11 +22,13 @@ func NewTopoSystem(interval int64) *TopoSystem {
 func (s *TopoSystem) Update(dt int64, cm *ComponentManager, w *World, t time.Time) {
 	log.Printf("TopoSystem update...")
 	startTime := time.Now()
+
 	satelliteIDs, err := w.GetSystemEntityIDs("SatelliteSystem")
 	if err != nil {
 		fmt.Println("[TopoSystem] Error getting satellites:", err)
 		return
 	}
+	// satelliteIDs := w.GlobalIDs
 	stationIDs, err := w.GetSystemEntityIDs("StationSystem")
 	if err != nil {
 		fmt.Println("[TopoSystem] Error getting stations:", err)
@@ -39,6 +41,8 @@ func (s *TopoSystem) Update(dt int64, cm *ComponentManager, w *World, t time.Tim
 	// 简单实现：全连接
 	cnt := 0
 	blockSize := (len(satelliteIDs) + w.numBlocks - 1) / w.numBlocks // 每个块的卫星数量
+
+	// blockSize := (len(cm.GlobalSatPositions) + w.numBlocks - 1) / w.numBlocks // 每个块的卫星数量
 	for i := 0; i < w.numBlocks; i++ {
 		start := i * blockSize
 		end := (i + 1) * blockSize
