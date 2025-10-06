@@ -13,16 +13,33 @@ import (
 	"github.com/joshuaferrara/go-satellite"
 )
 
+type Station struct {
+	ID  int
+	Lat float64
+	Lon float64
+	Key uint64 // Morton/Hilbert key
+}
+
+type RegionRect struct {
+	NodeID int     `json:"node_id"`
+	MinLat float64 `json:"min_lat"`
+	MaxLat float64 `json:"max_lat"`
+	MinLon float64 `json:"min_lon"` // [-180,180)
+	MaxLon float64 `json:"max_lon"` // [-180,180)
+	Wrap   bool    `json:"wrap"`    // true 表示经度区间跨 180/-180 边界（需要按 "wrap" 处理）
+}
+
 type EntityID int
 
 type World struct {
-	Systems      map[SystemType]System
-	Components   *ComponentManager
-	nextEntityID EntityID
-	numWGs       int // Number of working groups
-	numBlocks    int
-	parallelFlag int // 0 = block-level parallel, 1 = intra-block parallel
-	GlobalIDs    []EntityID
+	Systems        map[SystemType]System
+	Components     *ComponentManager
+	nextEntityID   EntityID
+	numWGs         int // Number of working groups
+	numBlocks      int
+	parallelFlag   int // 0 = block-level parallel, 1 = intra-block parallel
+	TargetIDs      []EntityID
+	TotalTargetSat int // Total target satellites, used for preallocation
 }
 
 func NewWorld(numBlocks, numWGs, parallelFlag, totalSat int) *World {
@@ -34,16 +51,55 @@ func NewWorld(numBlocks, numWGs, parallelFlag, totalSat int) *World {
 			// MovementEntityToIndex:       make(map[EntityID]int),
 			StationPositionComponents: make([]StationPositionComponent, 0),
 			// StationEntityToIndex:        make(map[EntityID]int),
-			Links:              make([][]Link, 0),
-			StationWeather:     make([]EnvironmentIndex, 0),
-			GlobalSatPositions: make([]SatelliteMovementComponent, totalSat), // Preallocate for all satellites
+			Links:            make([][]Link, 0),
+			StationWeather:   make([]EnvironmentIndex, 0),
+			TargetSatellites: make([]SatelliteMovementComponent, 0),
 		},
 		nextEntityID: 0,
 		Systems:      make(map[SystemType]System),
 		numWGs:       numWGs,
 		numBlocks:    numBlocks,
-		parallelFlag: parallelFlag, // Default to block-level parallel
+		TargetIDs:    make([]EntityID, 0), // 用于存储全局唯一ID
+		parallelFlag: parallelFlag,        // Default to block-level parallel
 	}
+}
+
+func (world *World) InitStationFromList(stations []Station, stationSystem *StationSystem) {
+	loadedCount := 0
+	for _, s := range stations {
+		lat := s.Lat
+		lon := s.Lon
+		entityID := EntityID(loadedCount)
+
+		// 确保切片容量足够，避免索引越界
+		for len(world.Components.StationPositionComponents) <= int(entityID) {
+			world.Components.StationPositionComponents = append(
+				world.Components.StationPositionComponents,
+				StationPositionComponent{},
+			)
+		}
+		// 直接在对应索引位置赋值（而非append，避免ID错乱）
+		world.Components.StationPositionComponents[entityID] = StationPositionComponent{
+			EntityID: entityID,
+			Lat:      lat,
+			Lon:      lon,
+		}
+
+		// 初始化对应的天气组件
+		for len(world.Components.StationWeather) <= int(entityID) {
+			world.Components.StationWeather = append(
+				world.Components.StationWeather,
+				EnvironmentIndex{},
+			)
+		}
+		world.Components.StationWeather[entityID] = EnvironmentIndex{}
+
+		// 添加到终端系统管理
+		stationSystem.AddEntityID(entityID)
+		loadedCount++
+	}
+	fmt.Printf("Successfully loaded %d stations \n", loadedCount)
+
 }
 
 func (world *World) InitStationRange(start, end int, stationSystem *StationSystem) {
@@ -150,7 +206,7 @@ func (world *World) InitSatelliteRange(start, end int, satelliteSystem *Satellit
 		}
 		l2 := scanner.Text()
 		if currentSatID >= start && currentSatID < end {
-			entityID := EntityID(currentSatID)
+			entityID := EntityID(readCount)
 			tleComponent := TLEComponent{
 				Line1:     l1,
 				Line2:     l2,

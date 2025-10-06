@@ -20,6 +20,7 @@ type SatelliteMovementComponent struct {
 type StationPositionComponent struct {
 	EntityID EntityID
 	Lat, Lon float64
+	Key      float64
 }
 
 type EnvironmentIndex struct {

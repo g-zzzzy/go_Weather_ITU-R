@@ -23,12 +23,13 @@ func (s *TopoSystem) Update(dt int64, cm *ComponentManager, w *World, t time.Tim
 	log.Printf("TopoSystem update...")
 	startTime := time.Now()
 
-	satelliteIDs, err := w.GetSystemEntityIDs("SatelliteSystem")
-	if err != nil {
-		fmt.Println("[TopoSystem] Error getting satellites:", err)
-		return
-	}
-	// satelliteIDs := w.GlobalIDs
+	// satelliteIDs, err := w.GetSystemEntityIDs("SatelliteSystem")
+	// if err != nil {
+	// 	fmt.Println("[TopoSystem] Error getting satellites:", err)
+	// 	return
+	// }
+	satelliteIDs := w.TargetIDs
+	log.Println("[TopoSystem] Satellite nums:", len(satelliteIDs))
 	stationIDs, err := w.GetSystemEntityIDs("StationSystem")
 	if err != nil {
 		fmt.Println("[TopoSystem] Error getting stations:", err)

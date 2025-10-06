@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -27,8 +28,47 @@ var (
 // 全局缓存所有卫星位置（带锁保证并发安全）
 var (
 	// globalSatPositions = make(map[int]go_Weather_ITUR.SatelliteMovementComponent)
-	satMutex sync.RWMutex
+	satMutex          sync.RWMutex
+	regionMutex       sync.RWMutex
+	localRegionRects  []go_Weather_ITUR.RegionRect
+	globalLoadedCount int
 )
+
+func toLatLon(x, y, z float64) (lat, lon float64) {
+	r := math.Sqrt(x*x + y*y + z*z)
+	lat = math.Asin(z/r) * 180.0 / math.Pi
+	lon = math.Atan2(y, x) * 180.0 / math.Pi
+	return
+}
+
+func inRect(lat, lon float64, rect go_Weather_ITUR.RegionRect) bool {
+	if lat < rect.MinLat || lat > rect.MaxLat {
+		return false
+	}
+	if !rect.Wrap {
+		return !(lon < rect.MinLon || lon > rect.MaxLon)
+	}
+	// wrap == true 表示跨日界，例如 minLon=170, maxLon=-170，
+	// 判断方法为 lon >= minLon OR lon <= maxLon
+	return lon >= rect.MinLon || lon <= rect.MaxLon
+}
+
+func Region(world *go_Weather_ITUR.World) map[int][]int {
+	regionBuckets := make(map[int][]int)
+	for satID, pos := range world.Components.SatelliteMovementComponents {
+		regionMutex.RLock()
+		lat, lon := pos.PosX, pos.PosY
+		longitudeDeg := math.Mod(lon+180, 360) - 180
+		// 粗略的判断，不涉及圆锥角的投影
+		for _, rect := range localRegionRects {
+			if inRect(lat, longitudeDeg, rect) {
+				regionBuckets[rect.NodeID] = append(regionBuckets[rect.NodeID], satID)
+			}
+		}
+		regionMutex.RUnlock()
+	}
+	return regionBuckets
+}
 
 func main() {
 	flag.Parse()
@@ -56,10 +96,26 @@ func main() {
 	// 解析任务范围
 	startSat, _ := strconv.Atoi(taskAlloc["start_sat"])
 	endSat, _ := strconv.Atoi(taskAlloc["end_sat"])
-	startTerm, _ := strconv.Atoi(taskAlloc["start_term"])
-	endTerm, _ := strconv.Atoi(taskAlloc["end_term"])
-	log.Printf("节点%d任务: 卫星[%d-%d], 终端[%d-%d]",
-		*nodeID, startSat, endSat, startTerm, endTerm)
+
+	var stations []go_Weather_ITUR.Station
+	if taskAlloc["stations"] != "" {
+		if err := json.Unmarshal([]byte(taskAlloc["stations"]), &stations); err != nil {
+			log.Fatalf("解析终端分区失败: %v", err)
+		}
+	}
+
+	// 解析所有区域范围
+	if taskAlloc["region"] != "" {
+		var rects []go_Weather_ITUR.RegionRect
+		if err := json.Unmarshal([]byte(taskAlloc["region"]), &rects); err != nil {
+			log.Fatalf("解析区域范围失败: %v", err)
+		} else {
+			regionMutex.Lock()
+			localRegionRects = rects
+			regionMutex.Unlock()
+			log.Printf("节点%d 已加载 %d 个区域矩形", *nodeID, len(rects))
+		}
+	}
 
 	// 2. 初始化本地世界
 	world := go_Weather_ITUR.NewWorld(
@@ -82,19 +138,28 @@ func main() {
 
 	// 加载本地卫星和终端
 	world.InitSatelliteRange(startSat, endSat, satSystem)
-	world.InitStationRange(startTerm, endTerm, stationSystem)
+	world.InitStationFromList(stations, stationSystem)
+	// world.InitStationRange(startTerm, endTerm, stationSystem)
+
+	log.Printf("节点%d初始化完成: 卫星[%d-%d], 终端数量=[%d]",
+		*nodeID, startSat, endSat, len(stations))
+
+	if err := rdb.Publish(ctx, "worker-init-ok", strconv.Itoa(*nodeID)).Err(); err != nil {
+		log.Fatalf("发布worker-init-ok失败: %v", err)
+	}
 
 	// 3. 订阅Redis频道（分离不同频道的处理逻辑）
-	epochSub := rdb.Subscribe(ctx, "epoch-start")
+	epochSub := rdb.Subscribe(ctx, "epoch-start", "finish")
 	defer epochSub.Close()
 
-	regionSub := rdb.Subscribe(ctx, "region-global")
+	channelRegion := fmt.Sprintf("region-pos:%d", *nodeID)
+	regionSub := rdb.Subscribe(ctx, channelRegion)
 	defer regionSub.Close()
 
 	syncSub := rdb.Subscribe(ctx, "sat-sync-complete")
 	defer syncSub.Close()
 
-	// 启动goroutine处理region-global消息（接收其他节点的卫星位置）
+	// 启动goroutine处理region-pos消息（接收其他节点的卫星位置）
 	go func() {
 		for {
 			msg, err := regionSub.ReceiveMessage(ctx)
@@ -103,24 +168,43 @@ func main() {
 				continue
 			}
 
-			parts := strings.Split(msg.Payload, ",")
-			if len(parts) != 5 || parts[0] != "sat" {
+			var sats []struct {
+				ID int     `json:"id"`
+				X  float64 `json:"x"`
+				Y  float64 `json:"y"`
+				Z  float64 `json:"z"`
+			}
+			if err := json.Unmarshal([]byte(msg.Payload), &sats); err != nil {
+				log.Printf("解析卫星位置JSON失败: %v", err)
 				continue
 			}
-			satID, _ := strconv.Atoi(parts[1])
-			x, _ := strconv.ParseFloat(parts[2], 64)
-			y, _ := strconv.ParseFloat(parts[3], 64)
-			z, _ := strconv.ParseFloat(parts[4], 64)
 
-			// 加锁更新全局缓存，避免并发写入冲突
-			satMutex.Lock()
-			world.Components.GlobalSatPositions[satID] = go_Weather_ITUR.SatelliteMovementComponent{
-				EntityID: go_Weather_ITUR.EntityID(satID),
-				PosX:     x,
-				PosY:     y,
-				PosZ:     z,
+			globalLoadedCount++
+			var newTargetIDs []go_Weather_ITUR.EntityID
+			var newTargetSatellites []go_Weather_ITUR.SatelliteMovementComponent
+
+			for _, sat := range sats {
+				x := sat.X
+				y := sat.Y
+				z := sat.Z
+				entityID := go_Weather_ITUR.EntityID(globalLoadedCount - 1)
+				for len(newTargetSatellites) <= int(entityID) {
+					newTargetSatellites = append(newTargetSatellites,
+						go_Weather_ITUR.SatelliteMovementComponent{})
+				}
+				newTargetSatellites[entityID] = go_Weather_ITUR.SatelliteMovementComponent{
+					EntityID: entityID,
+					PosX:     x,
+					PosY:     y,
+					PosZ:     z,
+				}
+				newTargetIDs = append(newTargetIDs, entityID)
+				globalLoadedCount++
 			}
-			world.GlobalIDs = append(world.GlobalIDs, go_Weather_ITUR.EntityID(satID))
+
+			satMutex.Lock()
+			world.TargetIDs = append(world.TargetIDs, newTargetIDs...)
+			world.Components.TargetSatellites = newTargetSatellites
 			satMutex.Unlock()
 		}
 
@@ -157,71 +241,94 @@ func main() {
 			continue
 		}
 
-		epoch, err := strconv.Atoi(msg.Payload)
-		if err != nil {
-			log.Printf("解析epoch编号失败: %v", err)
-			continue
-		}
-		log.Printf("节点%d收到epoch %d 启动信号", *nodeID, epoch)
-		startTime := time.Now()
-
-		// 5. 执行本地更新逻辑
-		// a. 更新本地卫星位置
-		world.Systems[go_Weather_ITUR.SatelliteSystemType].Update(
-			1000, world.Components, world, time.Now())
-
-		// b. 批量发布本地卫星位置（控制速率，避免Redis消息风暴）
-		publishBatchSize := 100 // 每批发布100个卫星位置
-		for i := startSat; i < endSat; i += publishBatchSize {
-			end := i + publishBatchSize
-			if end > endSat {
-				end = endSat
+		switch msg.Channel {
+		case "finish":
+			log.Printf("节点%d收到finish信号，退出程序", *nodeID)
+			return
+		case "epoch-start":
+			epoch, err := strconv.Atoi(msg.Payload)
+			if err != nil {
+				log.Printf("解析epoch编号失败: %v", err)
+				continue
 			}
-			// 批量发布减少Redis请求次数
-			for satID := i; satID < end; satID++ {
-				pos := world.Components.SatelliteMovementComponents[satID]
-				rdb.Publish(ctx, "region-global",
-					fmt.Sprintf("sat,%d,%.6f,%.6f,%.6f", satID, pos.PosX, pos.PosY, pos.PosZ))
+			log.Printf("节点%d收到epoch %d 启动信号", *nodeID, epoch)
+			startTime := time.Now()
+			globalLoadedCount = 0 // 重置全局加载计数
+			world.TargetIDs = world.TargetIDs[:0]
+			world.Components.TargetSatellites = world.Components.SatelliteMovementComponents[:0]
+
+			// 5. 执行本地更新逻辑
+			// a. 更新本地卫星位置
+			world.Systems[go_Weather_ITUR.SatelliteSystemType].Update(
+				1000, world.Components, world, time.Now())
+
+			// b. 卫星分区
+			log.Printf("节点%d开始处理卫星位置分区", *nodeID)
+
+			regionBuckets := Region(world)
+
+			// c. 批量发布本地卫星位置（控制速率，避免Redis消息风暴）
+			for rid, satIDs := range regionBuckets {
+				// batch publish, 避免逐条发太多小消息
+				log.Printf("节点%d：发布区域%d的卫星位置，共%d颗", *nodeID, rid, len(satIDs))
+				batchSize := 200
+				for i := 0; i < len(satIDs); i += batchSize {
+					j := i + batchSize
+					if j > len(satIDs) {
+						j = len(satIDs)
+					}
+					// 构造一个简短的 JSON：[{id:...,x:...,y:...,z:...}, ...]
+
+					payload := make([]map[string]interface{}, 0, j-i)
+					for _, sid := range satIDs[i:j] {
+						p := world.Components.SatelliteMovementComponents[sid]
+						payload = append(payload, map[string]interface{}{
+							"id": sid, "x": p.PosX, "y": p.PosY, "z": p.PosZ,
+						})
+					}
+					bs, _ := json.Marshal(payload)
+					// 发布到 region-pos:<regionNodeID>
+					_ = rdb.Publish(ctx, fmt.Sprintf("region-pos:%d", rid), string(bs)).Err()
+				}
 			}
-			time.Sleep(10 * time.Millisecond) // 轻微延迟，避免拥塞
+
+			// 本节点发布同步完成信号
+			rdb.Publish(ctx, "sat-sync-complete", strconv.Itoa(*nodeID))
+
+			// 等待同步完成或超时
+			select {
+			case <-syncDoneCh:
+				log.Printf("节点%d：所有卫星位置同步完成", *nodeID)
+			case <-time.After(*syncTimeOut):
+				log.Printf("节点%d：卫星位置同步超时，继续执行（可能数据不完整）", *nodeID)
+			}
+
+			// d. 验证是否获取了所有卫星位置
+			satMutex.RLock()
+			log.Printf("节点%d：共缓存%d颗卫星位置", *nodeID, len(world.Components.TargetSatellites))
+			satMutex.RUnlock()
+
+			// e. 执行后续计算（终端天气、链路生成、衰减计算）
+			world.Systems[go_Weather_ITUR.StationSystemType].Update(
+				1000, world.Components, world, time.Now())
+
+			world.Systems[go_Weather_ITUR.TopoSystemType].Update(
+				1000, world.Components, world, time.Now())
+
+			world.Systems[go_Weather_ITUR.AttenuationSystemType].Update(
+				1000, world.Components, world, time.Now())
+
+			// 6. 发布完成信号
+			elapsed := time.Since(startTime).Milliseconds()
+			rdb.Publish(ctx, "epoch-done",
+				fmt.Sprintf("node:%d,elapsed:%d", *nodeID, elapsed))
+			log.Printf("节点%d完成epoch %d，耗时%dms", *nodeID, epoch, elapsed)
+
+			// 清理本轮缓存，准备下一轮
+			// satMutex.Lock()
+			// globalSatPositions = make(map[int]go_Weather_ITUR.SatelliteMovementComponent)
+			// satMutex.Unlock()
 		}
-
-		// 本节点发布同步完成信号
-		rdb.Publish(ctx, "sat-sync-complete", strconv.Itoa(*nodeID))
-
-		// 等待同步完成或超时
-		select {
-		case <-syncDoneCh:
-			log.Printf("节点%d：所有卫星位置同步完成", *nodeID)
-		case <-time.After(*syncTimeOut):
-			log.Printf("节点%d：卫星位置同步超时，继续执行（可能数据不完整）", *nodeID)
-		}
-
-		// d. 验证是否获取了所有卫星位置
-		satMutex.RLock()
-		log.Printf("节点%d：共缓存%d/%d颗卫星位置", *nodeID, len(world.Components.GlobalSatPositions), *totalSat)
-		satMutex.RUnlock()
-
-		// e. 执行后续计算（终端天气、链路生成、衰减计算）
-		world.Systems[go_Weather_ITUR.StationSystemType].Update(
-			1000, world.Components, world, time.Now())
-
-		world.Systems[go_Weather_ITUR.TopoSystemType].Update(
-			1000, world.Components, world, time.Now())
-
-		world.Systems[go_Weather_ITUR.AttenuationSystemType].Update(
-			1000, world.Components, world, time.Now())
-
-		// 6. 发布完成信号
-		elapsed := time.Since(startTime).Milliseconds()
-		rdb.Publish(ctx, "epoch-done",
-			fmt.Sprintf("node:%d,elapsed:%d", *nodeID, elapsed))
-		log.Printf("节点%d完成epoch %d，耗时%dms", *nodeID, epoch, elapsed)
-
-		// 清理本轮缓存，准备下一轮
-		// satMutex.Lock()
-		// globalSatPositions = make(map[int]go_Weather_ITUR.SatelliteMovementComponent)
-		// satMutex.Unlock()
 
 	}
 }

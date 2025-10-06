@@ -12,6 +12,6 @@ type ComponentManager struct {
 	// StationEntityToIndex      map[EntityID]int
 
 	// LinkComponents []LinkComponent
-	Links              [][]Link
-	GlobalSatPositions []SatelliteMovementComponent // Preallocate for all satellites
+	Links            [][]Link
+	TargetSatellites []SatelliteMovementComponent // Preallocate for all satellites
 }
