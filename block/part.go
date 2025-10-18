@@ -29,6 +29,14 @@ func normalize(lon, lat float64, Nx, Ny uint32) (uint32, uint32) {
 	return xi, yi
 }
 
+func normalizeSin(lon, lat float64, Nx, Ny uint32) (uint32, uint32) {
+	x := (lon + 180.0) / 360.0
+	y := (math.Sin(lat*math.Pi/180.0) + 1.0) / 2.0
+	xi := uint32(x * float64(Nx))
+	yi := uint32(y * float64(Ny))
+	return xi, yi
+}
+
 func morton(x, y uint32) uint64 {
 	var ans uint64
 	for i := 0; i < 32; i++ {
@@ -261,6 +269,12 @@ func partitionStations(stations []Station, groups int, mode string) [][]Station 
 			x, y := normalize(stations[i].Lon, stations[i].Lat, 2048, 2048)
 			stations[i].Key = uint64(hilbertXYToIndex(2048, int(x), int(y)))
 		}
+	case "hilbertSin":
+		// 原先的单次 Hilbert
+		for i := range stations {
+			x, y := normalizeSin(stations[i].Lon, stations[i].Lat, 2048, 2048)
+			stations[i].Key = uint64(hilbertXYToIndex(2048, int(x), int(y)))
+		}
 	case "hilbert2":
 		// 新的 Hilbert + 二次聚类
 		// 1. Hilbert 编码
@@ -467,8 +481,8 @@ func main() {
 	if err2 != nil {
 		log.Fatalf("Invalid group_num: %v", err2)
 	}
-	if mode != "morton" && mode != "hilbert" && mode != "hilbert2" && mode != "tree" {
-		err3 = fmt.Errorf("mode must be 'morton' or 'hilbert' or 'hilbert2' or 'tree'")
+	if mode != "morton" && mode != "hilbert" && mode != "hilbert2" && mode != "hilbertSin" && mode != "tree" {
+		err3 = fmt.Errorf("mode must be 'morton' or 'hilbert' or 'hilbert2' or 'hilbertSin' or 'tree'")
 	}
 	if err3 != nil {
 		log.Fatalf("Invalid mode: %v", err3)
