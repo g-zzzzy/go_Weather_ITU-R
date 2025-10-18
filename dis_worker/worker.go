@@ -321,8 +321,8 @@ func main() {
 			// 6. 发布完成信号
 			elapsed := time.Since(startTime).Milliseconds()
 			rdb.Publish(ctx, "epoch-done",
-				fmt.Sprintf("node:%d,elapsed:%d", *nodeID, elapsed))
-			log.Printf("节点%d完成epoch %d，耗时%dms", *nodeID, epoch, elapsed)
+				fmt.Sprintf("node:%d,elapsed:%d,lilnks:%d", *nodeID, elapsed, world.Components.LinksNum))
+			log.Printf("节点%d完成epoch %d，处理了%d条链路，耗时%dms", *nodeID, epoch, world.Components.LinksNum, elapsed)
 
 			// 清理本轮缓存，准备下一轮
 			// satMutex.Lock()

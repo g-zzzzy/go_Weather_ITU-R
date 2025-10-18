@@ -14,4 +14,5 @@ type ComponentManager struct {
 	// LinkComponents []LinkComponent
 	Links            [][]Link
 	TargetSatellites []SatelliteMovementComponent // Preallocate for all satellites
+	LinksNum         int
 }

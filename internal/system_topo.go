@@ -63,7 +63,7 @@ func (s *TopoSystem) Update(dt int64, cm *ComponentManager, w *World, t time.Tim
 		}
 		cm.Links[i] = links
 	}
-
+	cm.LinksNum = cnt
 	log.Printf("TopoSystem: Link count: %d", cnt)
 	log.Printf("TopoSystem: Link size: %d", len(cm.Links))
 	log.Printf("TopoSystem update time: %v", time.Since(startTime))

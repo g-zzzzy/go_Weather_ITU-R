@@ -54,6 +54,7 @@ func NewWorld(numBlocks, numWGs, parallelFlag, totalSat int) *World {
 			Links:            make([][]Link, 0),
 			StationWeather:   make([]EnvironmentIndex, 0),
 			TargetSatellites: make([]SatelliteMovementComponent, 0),
+			LinksNum:         0,
 		},
 		nextEntityID: 0,
 		Systems:      make(map[SystemType]System),

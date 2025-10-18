@@ -561,6 +561,7 @@ func main() {
 
 		doneNodes := make(map[int]bool)
 		maxElapsed := int64(0)
+		totalLinks := 0
 
 		for len(doneNodes) < *nodeCount {
 			msg, err := pubsub.ReceiveMessage(ctx)
@@ -572,10 +573,11 @@ func main() {
 			// 解析消息（格式：node:3,elapsed:123）
 			var nodeID int
 			var elapsed int64
-			fmt.Sscanf(msg.Payload, "node:%d,elapsed:%d", &nodeID, &elapsed)
+			var linksNum int
+			fmt.Sscanf(msg.Payload, "node:%d,elapsed:%d,lilnks:%d", &nodeID, &elapsed, &linksNum)
 			doneNodes[nodeID] = true
-			log.Printf("节点%d完成epoch %d，耗时%dms", nodeID, epoch, elapsed)
-
+			log.Printf("节点%d完成epoch %d，处理了%d条链路，耗时%dms", nodeID, epoch, linksNum, elapsed)
+			totalLinks += linksNum
 			if elapsed > maxElapsed {
 				maxElapsed = elapsed
 			}
@@ -586,8 +588,8 @@ func main() {
 
 		// 记录本轮总耗时
 		totalElapsed := time.Since(startTime).Milliseconds()
-		log.Printf("epoch %d 完成，全局最大耗时%dms，总耗时%dms\n",
-			epoch, maxElapsed, totalElapsed)
+		log.Printf("epoch %d 完成，全局最大耗时%dms，总耗时%dms，处理的链路总数为%d条\n",
+			epoch, maxElapsed, totalElapsed, totalLinks)
 
 		// 控制epoch间隔（根据实际需求调整）
 		time.Sleep(500 * time.Millisecond)
