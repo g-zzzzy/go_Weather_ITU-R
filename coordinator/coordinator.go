@@ -264,6 +264,19 @@ func partirionStations(stations []Station, groups int, mode string) [][]Station 
 		}
 		result = rebalanceGroups(result, groups)
 		return result
+	case "id":
+		result := make([][]Station, groups)
+		n := len(stations)
+		size := (n + groups - 1) / groups
+		for g := 0; g < groups; g++ {
+			start := g * size
+			end := (g + 1) * size
+			if end > n {
+				end = n
+			}
+			result[g] = stations[start:end]
+		}
+		return result
 	default:
 		log.Fatalf("Unknown partitioning mode: %s", mode)
 	}
@@ -437,6 +450,70 @@ func cleanupRedis(ctx context.Context, rdb *redis.Client, nodeIDs []int) {
 	log.Println("Redis 清理完成")
 }
 
+// 新增：写入终端分组经纬度到txt文件
+func writeTerminalGroupsToFile(filename string, terminalGroup [][]Station, nodeIDs []int) error {
+	// 创建/覆盖文件
+	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("打开文件失败: %w", err)
+	}
+	defer file.Close()
+
+	// 写入文件头部
+	header := fmt.Sprintf("===== 地面终端经纬度分组记录 =====\n总分组数: %d\n\n", len(terminalGroup))
+	if _, err := file.WriteString(header); err != nil {
+		return fmt.Errorf("写入头部失败: %w", err)
+	}
+
+	// 遍历每个分组，写入节点ID、终端数量和经纬度
+	for i, group := range terminalGroup {
+		nodeID := nodeIDs[i] // 对应节点ID
+		// 写入分组基本信息
+		groupHeader := fmt.Sprintf("--- 节点%d 终端分组 ---\n终端数量: %d\n经纬度列表:\n", nodeID, len(group))
+		if _, err := file.WriteString(groupHeader); err != nil {
+			return fmt.Errorf("写入节点%d分组头部失败: %w", nodeID, err)
+		}
+
+		// 写入每个终端的经纬度（带序号）
+		for idx, station := range group {
+			stationLine := fmt.Sprintf("  终端%d: 经度=%.6f, 纬度=%.6f\n", idx+1, station.Lon, station.Lat)
+			if _, err := file.WriteString(stationLine); err != nil {
+				return fmt.Errorf("写入节点%d终端%d失败: %w", nodeID, idx+1, err)
+			}
+		}
+		if len(group) > 0 {
+			var minLon, maxLon, minLat, maxLat float64
+			minLon, maxLon = group[0].Lon, group[0].Lon
+			minLat, maxLat = group[0].Lat, group[0].Lat
+			for _, s := range group {
+				if s.Lon < minLon {
+					minLon = s.Lon
+				}
+				if s.Lon > maxLon {
+					maxLon = s.Lon
+				}
+				if s.Lat < minLat {
+					minLat = s.Lat
+				}
+				if s.Lat > maxLat {
+					maxLat = s.Lat
+				}
+			}
+			rangeLine := fmt.Sprintf("  经纬度范围: 经度[%.6f, %.6f], 纬度[%.6f, %.6f]\n\n", minLon, maxLon, minLat, maxLat)
+			if _, err := file.WriteString(rangeLine); err != nil {
+				return fmt.Errorf("写入节点%d经纬度范围失败: %w", nodeID, err)
+			}
+		} else {
+			if _, err := file.WriteString("  无终端\n\n"); err != nil {
+				return fmt.Errorf("写入节点%d空分组失败: %w", nodeID, err)
+			}
+		}
+	}
+
+	log.Printf("终端分组经纬度已成功写入: %s", filename)
+	return nil
+}
+
 func main() {
 
 	flag.Parse()
@@ -489,7 +566,12 @@ func main() {
 	}
 
 	// 1. 任务分配：为每个节点分配卫星和终端范围
-	terminalGroup := partirionStations(stations, 4, "hilbert")
+	//hilbert
+	// mode := "hilbert"
+	mode := "id"
+	terminalGroup := partirionStations(stations, 4, mode)
+	//id
+	// terminalGroup = partirionStations(stations, 4, "id")
 
 	nodeIDs := []int{3, 4, 5, 6} // 节点ID列表
 
@@ -523,6 +605,11 @@ func main() {
 			nodeID, startSat, endSat, len(terminalGroup[i]))
 	}
 
+	filename := fmt.Sprintf("%s_terminal_groups.txt", mode) // 按模式命名（如hilbert_terminal_groups.txt）
+	if err := writeTerminalGroupsToFile(filename, terminalGroup, nodeIDs); err != nil {
+		log.Printf("写入终端分组日志失败: %v", err)
+	}
+
 	// 等待所有节点确认收到任务分配
 	log.Printf("等待所有节点确认任务分配...")
 	initSub := rdb.Subscribe(ctx, "worker-init-ok")
@@ -542,6 +629,13 @@ func main() {
 		log.Printf("关闭initSub失败: %v", err)
 	}
 	log.Printf("所有节点均已确认任务分配")
+
+	filename2 := fmt.Sprintf("%d_terminal_%d_satellite_%s_epoch_time.txt", *totalTerm, *totalSat, mode)
+	resultFile, err := os.OpenFile(filename2, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		log.Fatalf("create epoch result file failed: %v", err)
+	}
+	defer resultFile.Close()
 
 	// 2. 启动epoch循环
 	log.Printf("开始执行%d轮epoch...", *epochCount)
@@ -590,6 +684,7 @@ func main() {
 		totalElapsed := time.Since(startTime).Milliseconds()
 		log.Printf("epoch %d 完成，全局最大耗时%dms，总耗时%dms，处理的链路总数为%d条\n",
 			epoch, maxElapsed, totalElapsed, totalLinks)
+		fmt.Fprintf(resultFile, "epoch %d 完成，全局最大耗时%dms，总耗时%dms，处理的链路总数为%d条\n", epoch, maxElapsed, totalElapsed, totalLinks)
 
 		// 控制epoch间隔（根据实际需求调整）
 		time.Sleep(500 * time.Millisecond)

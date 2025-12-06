@@ -159,6 +159,9 @@ func main() {
 	syncSub := rdb.Subscribe(ctx, "sat-sync-complete")
 	defer syncSub.Close()
 
+	var epochTempTargets []go_Weather_ITUR.SatelliteMovementComponent
+	var epochTempMutex sync.Mutex
+
 	// 启动goroutine处理region-pos消息（接收其他节点的卫星位置）
 	go func() {
 		for {
@@ -179,33 +182,41 @@ func main() {
 				continue
 			}
 
-			globalLoadedCount++
-			var newTargetIDs []go_Weather_ITUR.EntityID
-			var newTargetSatellites []go_Weather_ITUR.SatelliteMovementComponent
+			// var newTargetIDs []go_Weather_ITUR.EntityID
+			// var newTargetSatellites []go_Weather_ITUR.SatelliteMovementComponent
+			epochTempMutex.Lock()
 
 			for _, sat := range sats {
 				x := sat.X
 				y := sat.Y
 				z := sat.Z
-				entityID := go_Weather_ITUR.EntityID(globalLoadedCount - 1)
-				for len(newTargetSatellites) <= int(entityID) {
-					newTargetSatellites = append(newTargetSatellites,
-						go_Weather_ITUR.SatelliteMovementComponent{})
-				}
-				newTargetSatellites[entityID] = go_Weather_ITUR.SatelliteMovementComponent{
-					EntityID: entityID,
-					PosX:     x,
-					PosY:     y,
-					PosZ:     z,
-				}
-				newTargetIDs = append(newTargetIDs, entityID)
-				globalLoadedCount++
+				epochTempTargets = append(epochTempTargets, go_Weather_ITUR.SatelliteMovementComponent{
+					// EntityID: sat.ID,
+					PosX: x,
+					PosY: y,
+					PosZ: z,
+				})
 			}
+			epochTempMutex.Unlock()
+			// entityID := go_Weather_ITUR.EntityID(globalLoadedCount)
+			// globalLoadedCount++
+			// for len(newTargetSatellites) < int(entityID) {
+			// 	newTargetSatellites = append(newTargetSatellites,
+			// 		go_Weather_ITUR.SatelliteMovementComponent{})
+			// }
+			// newTargetSatellites[entityID] = go_Weather_ITUR.SatelliteMovementComponent{
+			// 	EntityID: entityID,
+			// 	PosX:     x,
+			// 	PosY:     y,
+			// 	PosZ:     z,
+			// }
+			// newTargetIDs = append(newTargetIDs, entityID)
+			// }
 
-			satMutex.Lock()
-			world.TargetIDs = append(world.TargetIDs, newTargetIDs...)
-			world.Components.TargetSatellites = newTargetSatellites
-			satMutex.Unlock()
+			// satMutex.Lock()
+			// world.TargetIDs = append(world.TargetIDs, newTargetIDs...)
+			// world.Components.TargetSatellites = append(world.Components.TargetSatellites, newTargetSatellites...)
+			// satMutex.Unlock()
 		}
 
 	}()
@@ -219,12 +230,21 @@ func main() {
 				log.Printf("接收消息失败: %v", err)
 				continue
 			}
-			nodeID, err := strconv.Atoi(msg.Payload)
+			nodeId, err := strconv.Atoi(msg.Payload)
 			if err == nil {
-				doneNodes[nodeID] = true
-				log.Printf("已收到节点%d的卫星同步完成信号", nodeID)
+				doneNodes[nodeId] = true
+				log.Printf("已收到节点%d的卫星同步完成信号", nodeId)
 				if len(doneNodes) >= *nodeCount {
 					close(syncDoneCh) // 所有节点完成
+					epochTempMutex.Lock()
+					world.Components.TargetSatellites = make([]go_Weather_ITUR.SatelliteMovementComponent, len(epochTempTargets))
+					copy(world.Components.TargetSatellites, epochTempTargets)
+					world.TargetIDs = make([]go_Weather_ITUR.EntityID, len(epochTempTargets))
+					for i := range epochTempTargets {
+						world.TargetIDs[i] = go_Weather_ITUR.EntityID(i)
+					}
+					epochTempMutex.Unlock()
+					log.Printf("节点%d：已加载全部卫星位置，共%d颗", *nodeID, len(world.Components.TargetSatellites))
 					return
 				}
 			}
@@ -253,10 +273,12 @@ func main() {
 			}
 			log.Printf("节点%d收到epoch %d 启动信号", *nodeID, epoch)
 			startTime := time.Now()
-			globalLoadedCount = 0 // 重置全局加载计数
-			world.TargetIDs = world.TargetIDs[:0]
-			world.Components.TargetSatellites = world.Components.SatelliteMovementComponents[:0]
-
+			// globalLoadedCount = 0 // 重置全局加载计数
+			// world.TargetIDs = world.TargetIDs[:0]
+			// world.Components.TargetSatellites = world.Components.SatelliteMovementComponents[:0]
+			epochTempMutex.Lock()
+			epochTempTargets = epochTempTargets[:0]
+			epochTempMutex.Unlock()
 			// 5. 执行本地更新逻辑
 			// a. 更新本地卫星位置
 			world.Systems[go_Weather_ITUR.SatelliteSystemType].Update(

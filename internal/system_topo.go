@@ -3,6 +3,7 @@ package go_Weather_ITUR
 import (
 	"fmt"
 	"log"
+	"math"
 	"time"
 )
 
@@ -17,6 +18,18 @@ func NewTopoSystem(interval int64) *TopoSystem {
 			interval: interval,
 		},
 	}
+}
+
+func isVisible(satComp SatelliteMovementComponent, stationComp StationPositionComponent) bool {
+	// const threshold = 5.0 // 阈值：经纬度差值都小于5度则可见（可按需调整）
+	// 纬度差值绝对值
+	latDiff := math.Abs(satComp.PosX - stationComp.Lat)
+	// 经度差值绝对值
+	lonDiff := math.Abs(satComp.PosY - stationComp.Lon)
+	// 同时满足则可见
+	// log.Printf("satPosX=%.2f, satPosY=%.2f, staLat=%.2f, staLon=%.2f", satComp.PosX, satComp.PosY, stationComp.Lat, stationComp.Lon)
+	// log.Printf("latDiff=%.2f, lonDiff=%.2f", latDiff, lonDiff)
+	return latDiff < 5.0 && lonDiff < 5.0
 }
 
 func (s *TopoSystem) Update(dt int64, cm *ComponentManager, w *World, t time.Time) {
@@ -51,9 +64,15 @@ func (s *TopoSystem) Update(dt int64, cm *ComponentManager, w *World, t time.Tim
 			end = len(satelliteIDs)
 		}
 		blockSatellites := satelliteIDs[start:end]
-		links := make([]Link, 0, len(blockSatellites)*len(stationIDs))
+		// links := make([]Link, 0, len(blockSatellites)*len(stationIDs))
+		links := make([]Link, 0)
 		for _, sourceID := range blockSatellites {
+
 			for _, staID := range stationIDs {
+				if !isVisible(cm.TargetSatellites[sourceID], cm.StationPositionComponents[staID]) {
+					continue
+				}
+
 				links = append(links, Link{
 					SourceID: sourceID,
 					TargetID: staID,

@@ -13,6 +13,9 @@ import (
 	"time"
 )
 
+const peanoN uint32 = 6561
+const peanoLevel int = 8
+
 type Station struct {
 	ID  int
 	Lat float64
@@ -21,6 +24,32 @@ type Station struct {
 }
 
 // 经纬映射到 [0,N) 网格
+
+// peanoKey 采用 3-进制分割而非 Hilbert 的 2-进制旋转方式
+// Nx, Ny 应为 3^k 网格（否则边界自动拉伸）
+func peanoKey(x, y uint32, level int) uint64 {
+	var key uint64
+	var pow uint64 = 1
+
+	// 从最低层往上递归编码
+	for i := 0; i < level; i++ {
+		// 取当前层的网格编号（mod 3）
+		ix := x % 3
+		iy := y % 3
+
+		// 转换成 0~8 的 Peano 扫描序
+		cell := ix + 3*iy
+
+		key += uint64(cell) * pow
+		pow *= 9 // 每层 9 个子格
+
+		// 下一层递归
+		x /= 3
+		y /= 3
+	}
+	return key
+}
+
 func normalize(lon, lat float64, Nx, Ny uint32) (uint32, uint32) {
 	x := (lon + 180.0) / 360.0
 	y := (lat + 90.0) / 180.0
@@ -275,6 +304,11 @@ func partitionStations(stations []Station, groups int, mode string) [][]Station 
 			x, y := normalizeSin(stations[i].Lon, stations[i].Lat, 2048, 2048)
 			stations[i].Key = uint64(hilbertXYToIndex(2048, int(x), int(y)))
 		}
+	case "peano":
+		for i := range stations {
+			x, y := normalize(stations[i].Lon, stations[i].Lat, peanoN, peanoN)
+			stations[i].Key = peanoKey(x, y, peanoLevel)
+		}
 	case "hilbert2":
 		// 新的 Hilbert + 二次聚类
 		// 1. Hilbert 编码
@@ -481,7 +515,7 @@ func main() {
 	if err2 != nil {
 		log.Fatalf("Invalid group_num: %v", err2)
 	}
-	if mode != "morton" && mode != "hilbert" && mode != "hilbert2" && mode != "hilbertSin" && mode != "tree" {
+	if mode != "morton" && mode != "hilbert" && mode != "hilbert2" && mode != "hilbertSin" && mode != "tree" && mode != "peano" {
 		err3 = fmt.Errorf("mode must be 'morton' or 'hilbert' or 'hilbert2' or 'hilbertSin' or 'tree'")
 	}
 	if err3 != nil {
